@@ -1377,6 +1377,7 @@ dependencies = [
 name = "komprender"
 version = "0.0.0"
 dependencies = [
+ "once_cell",
  "rdkafka",
  "serde",
  "serde_json",

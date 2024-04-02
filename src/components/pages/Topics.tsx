@@ -59,6 +59,13 @@ export function Topics() {
     setCheckedAll(false);
   }, [checkedTopics]);
 
+  function dropTopics() {
+    (async () => {
+      await invoke('drop_topics', { topicNames: checkedTopics });
+      fetchTopics();
+    })();
+  }
+
   return (
     <>
       <div className="flex items-center justify-center p-6 pb-0">
@@ -66,9 +73,8 @@ export function Topics() {
       </div>
 
       <div className="flex items-start justify-start p-6 pb-0">
-        <Button disabled={!checkedTopics.length}>Delete selected topics</Button>
-        <Button className="ml-6" disabled={!checkedTopics.length}>
-          Purge messages of selected topics
+        <Button disabled={!checkedTopics.length} onClick={dropTopics}>
+          Delete selected topics
         </Button>
       </div>
 

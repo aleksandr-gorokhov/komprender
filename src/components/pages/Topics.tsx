@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import _ from 'lodash';
+import { Button } from '@/components/ui/button.tsx';
 
 interface ITopic {
   name: string;
@@ -60,50 +61,59 @@ export function Topics() {
 
   return (
     <>
-      <div className="flex items-center justify-center pt-6 pr-6 pl-6">
+      <div className="flex items-center justify-center p-6 pb-0">
         <Input placeholder="Filter" onChange={e => setFilter(e.target.value)} />
       </div>
 
-      <div className="flex h-full items-center justify-center p-6 pt-0">
+      <div className="flex items-start justify-start p-6 pb-0">
+        <Button disabled={!checkedTopics.length}>Delete selected topics</Button>
+        <Button className="ml-6" disabled={!checkedTopics.length}>
+          Purge messages of selected topics
+        </Button>
+      </div>
+
+      <div className="flex h-full items-start justify-center pt-6">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead colSpan={2} className="w-[100px]">
+              <TableHead colSpan={2} className="w-[100px] pl-0">
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="select-all" onCheckedChange={() => selectAll()} checked={checkedAll} className="mr-2" />
+                  <Checkbox
+                    id="select-all"
+                    onCheckedChange={() => selectAll()}
+                    checked={checkedAll}
+                    className="mr-2 ml-6"
+                  />
                   <label
                     htmlFor="select-all"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     Topic
                   </label>
                 </div>
               </TableHead>
               <TableHead className="text-right">Partitions</TableHead>
-              <TableHead className="text-right">Messages</TableHead>
+              <TableHead className="text-right pr-6">Messages</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {topics.map(topic => (
               <TableRow key={topic.name}>
-                <TableCell colSpan={2} className="font-medium text-left">
+                <TableCell colSpan={2} className="font-medium text-left pl-0">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id={topic.name}
                       onCheckedChange={() => select(topic.name)}
                       checked={checkedTopics.includes('all') || checkedTopics.includes(topic.name)}
-                      className="mr-2"
+                      className="mr-2 ml-6"
                     />
-                    <label
-                      htmlFor={topic.name}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
+                    <p className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                       {topic.name}
-                    </label>
+                    </p>
                   </div>
                 </TableCell>
                 <TableCell className="text-right">{topic.partitions}</TableCell>
-                <TableCell className="text-right">{topic.messages}</TableCell>
+                <TableCell className="text-right pr-6">{topic.messages}</TableCell>
               </TableRow>
             ))}
           </TableBody>

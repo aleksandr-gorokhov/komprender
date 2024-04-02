@@ -11,6 +11,14 @@
   },
   "tauri": {
     "allowlist": {
+      "fs": {
+        "scope": [
+          "$LOCALDATA/komprender/*"
+        ],
+        "writeFile": true,
+        "removeDir": true,
+        "removeFile": true
+      },
       "all": false,
       "window": {
         "startDragging": true

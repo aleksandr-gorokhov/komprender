@@ -1,9 +1,19 @@
+use std::path::PathBuf;
+
 use once_cell::sync::Lazy;
-use rdkafka::ClientConfig;
 use rdkafka::consumer::{BaseConsumer, Consumer};
+use rdkafka::ClientConfig;
+use serde::{Deserialize, Serialize};
+use tokio::fs::{self, File};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 
 pub struct KafkaConnection;
+
+#[derive(Serialize, Deserialize)]
+struct Brokers {
+    brokers: Vec<String>,
+}
 
 pub static KAFKA_CONNECTION: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
 
@@ -20,6 +30,9 @@ impl KafkaConnection {
     }
 
     pub async fn connect(broker: &str) -> Result<bool, String> {
+        if broker.contains(',') {
+            return Err("Cluster connection are not supported yet".to_string());
+        }
         println!("Connecting to Kafka broker: {}", broker);
         let consumer: BaseConsumer = ClientConfig::new()
             .set("bootstrap.servers", broker)
@@ -40,6 +53,10 @@ impl KafkaConnection {
         }
         println!("Connected to Kafka broker: {}", broker);
 
+        KafkaConnection::store_broker(broker)
+            .await
+            .map_err(|e| e.to_string())?;
+
         let mut kafka_consumer_guard = KafkaConnection::get_instance().await.lock().await;
         match &*kafka_consumer_guard {
             Some(_) => Ok(true),
@@ -48,5 +65,54 @@ impl KafkaConnection {
                 Ok(true)
             }
         }
+    }
+
+    async fn store_broker(broker: &str) -> Result<(), String> {
+        let local_data_dir = tauri::api::path::local_data_dir()
+            .unwrap_or(PathBuf::new())
+            .display()
+            .to_string();
+        println!("{:?}", local_data_dir);
+
+        let file_path = PathBuf::from(local_data_dir).join("komprender/brokers.json");
+        println!("{:?}", file_path);
+
+        if file_path.exists() {
+            let mut file = File::open(&file_path).await.map_err(|e| e.to_string())?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            let mut file_contents: Brokers =
+                serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+
+            if !file_contents.brokers.contains(&broker.to_string()) {
+                file_contents.brokers.push(broker.to_string());
+            }
+
+            let serialized =
+                serde_json::to_string_pretty(&file_contents).map_err(|e| e.to_string())?;
+            fs::write(file_path, serialized)
+                .await
+                .map_err(|e| e.to_string())?;
+        } else {
+            let data = Brokers {
+                brokers: vec![broker.to_string()],
+            };
+
+            let serialized = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;
+            if let Some(parent) = file_path.parent() {
+                fs::create_dir_all(parent)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+            let mut file = File::create(&file_path).await.map_err(|e| e.to_string())?;
+            file.write_all(serialized.as_bytes())
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
     }
 }

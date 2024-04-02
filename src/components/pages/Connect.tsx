@@ -11,14 +11,14 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
 
   return (
     <>
-      <div className="flex flex-col items-start h-screen w-screen">
+      <div className="flex flex-row flex-wrap items-start w-screen">
         {knownHosts.map(host => (
-          <Card className="w-[380px] ml-6 mt-10">
+          <Card className="w-[300px] ml-6 mt-10">
             <CardHeader>
               <CardTitle>{host}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <div className=" flex items-center space-x-4 rounded-md p-4"></div>
+              <div className="flex items-center space-x-4 rounded-md p-4"></div>
             </CardContent>
             <CardFooter>
               <Button className="w-full">Connect</Button>

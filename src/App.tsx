@@ -4,11 +4,15 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { Connect } from '@/components/pages/Connect';
 import { Button } from '@/components/ui/button';
 import { Topics } from '@/components/pages/Topics';
+import { Route, Routes, useNavigate } from 'react-router-dom';
+import { TestContent } from '@/components/pages/TestContent.tsx';
+import { CreateTopic } from '@/components/pages/CreateTopic.tsx';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string>('');
   const [screen, setScreen] = useState<string>('topics');
+  const navigate = useNavigate();
 
   function connect(broker: string) {
     (async () => {
@@ -46,17 +50,24 @@ function App() {
             <Button
               variant={screen === 'topics' ? 'outline' : 'default'}
               className="m-2 ml-0 w-full"
-              onClick={() => setScreen('topics')}
+              onClick={() => {
+                setScreen('topics');
+                navigate('/topics');
+              }}
             >
               Topics
             </Button>
             <Button
-              variant={screen === 'schemaRegistry' ? 'outline' : 'default'}
+              variant={screen === 'schema' ? 'outline' : 'default'}
               className="m-2 ml-0 w-full"
-              onClick={() => setScreen('schemaRegistry')}
+              onClick={() => {
+                setScreen('schema');
+                navigate('/schema');
+              }}
             >
               Schema Registry
             </Button>
+
             <Button variant="destructive" className="m-2 ml-0 w-full" onClick={disconnect}>
               Disconnect
             </Button>
@@ -64,7 +75,12 @@ function App() {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
-          <Topics />
+          <Routes>
+            <Route path="/" Component={Topics} />
+            <Route path="/topics" Component={Topics} />
+            <Route path="/schema" Component={TestContent} />
+            <Route path="/create" Component={CreateTopic} />
+          </Routes>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

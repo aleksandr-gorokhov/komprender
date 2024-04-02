@@ -5,6 +5,8 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import _ from 'lodash';
 import { Button } from '@/components/ui/button.tsx';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 
 interface ITopic {
   name: string;
@@ -17,6 +19,7 @@ export function Topics() {
   const [filter, setFilter] = useState('');
   const [checkedTopics, setCheckedTopics] = useState<string[]>([]);
   const [checkedAll, setCheckedAll] = useState(false);
+  const navigate = useNavigate();
 
   const fetchTopics = _.debounce(async () => {
     const response = await invoke<ITopic[]>('fetch_topics', { filter });
@@ -75,6 +78,9 @@ export function Topics() {
       <div className="flex items-start justify-start p-6 pb-0">
         <Button disabled={!checkedTopics.length} onClick={dropTopics}>
           Delete selected topics
+        </Button>
+        <Button className="ml-2 p-2" onClick={() => navigate('/create')}>
+          <Plus size={20} />
         </Button>
       </div>
 

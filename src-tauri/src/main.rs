@@ -31,6 +31,11 @@ async fn disconnect() -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn fetch_saved_brokers() -> Result<Vec<String>, String> {
+    KafkaConnection::get_saved_brokers().await
+}
+
+#[tauri::command]
 async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
     let kafka = KafkaConnection::get_instance().await.lock().await;
     if let Some(consumer) = &*kafka {
@@ -70,7 +75,12 @@ async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
 #[tokio::main]
 async fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![connect, fetch_topics, disconnect])
+        .invoke_handler(tauri::generate_handler![
+            connect,
+            fetch_topics,
+            disconnect,
+            fetch_saved_brokers
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

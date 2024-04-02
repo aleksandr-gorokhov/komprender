@@ -30,6 +30,10 @@ impl KafkaConnection {
     }
 
     pub async fn connect(broker: &str) -> Result<bool, String> {
+        if broker.is_empty() {
+            return Err("Broker cannot be empty".to_string());
+        }
+
         if broker.contains(',') {
             return Err("Cluster connection are not supported yet".to_string());
         }
@@ -67,15 +71,37 @@ impl KafkaConnection {
         }
     }
 
+    pub async fn get_saved_brokers() -> Result<Vec<String>, String> {
+        let local_data_dir = tauri::api::path::local_data_dir()
+            .unwrap_or(PathBuf::new())
+            .display()
+            .to_string();
+
+        let file_path = PathBuf::from(local_data_dir).join("komprender/brokers.json");
+
+        if file_path.exists() {
+            let mut file = File::open(&file_path).await.map_err(|e| e.to_string())?;
+            let mut contents = String::new();
+            file.read_to_string(&mut contents)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            let file_contents: Brokers =
+                serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+
+            Ok(file_contents.brokers)
+        } else {
+            Ok(vec![])
+        }
+    }
+
     async fn store_broker(broker: &str) -> Result<(), String> {
         let local_data_dir = tauri::api::path::local_data_dir()
             .unwrap_or(PathBuf::new())
             .display()
             .to_string();
-        println!("{:?}", local_data_dir);
 
         let file_path = PathBuf::from(local_data_dir).join("komprender/brokers.json");
-        println!("{:?}", file_path);
 
         if file_path.exists() {
             let mut file = File::open(&file_path).await.map_err(|e| e.to_string())?;

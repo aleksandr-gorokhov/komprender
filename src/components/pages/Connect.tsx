@@ -30,7 +30,7 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
     <>
       <div className="flex flex-row flex-wrap items-start w-screen pt-6">
         {knownHosts.map(host => (
-          <Card className="w-[300px] ml-6 mt-10">
+          <Card key={host} className="w-[300px] ml-6 mt-10">
             <CardHeader>
               <CardTitle>{host}</CardTitle>
             </CardHeader>

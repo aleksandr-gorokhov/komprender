@@ -46,13 +46,18 @@ async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
         let mut topics_info = vec![];
 
         for topic in metadata.topics().iter() {
-            if !topic.name().contains(filter) {
+            let topic_name = topic.name();
+            if !topic_name.contains(filter) {
+                continue;
+            }
+
+            if topic_name.starts_with("_") {
                 continue;
             }
             let mut total_messages = 0;
             for partition in topic.partitions().iter() {
                 if let Ok((low, high)) = consumer.fetch_watermarks(
-                    topic.name(),
+                    topic_name,
                     partition.id(),
                     std::time::Duration::from_secs(10),
                 ) {
@@ -61,7 +66,7 @@ async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
             }
 
             topics_info.push(TopicResult {
-                name: topic.name().to_owned(),
+                name: topic_name.to_owned(),
                 partitions: topic.partitions().iter().len(),
                 messages: total_messages,
             });

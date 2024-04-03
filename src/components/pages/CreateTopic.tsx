@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { invoke } from '@tauri-apps/api/tauri';
 import { useNavigate } from 'react-router-dom';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
+import { AlertCircle } from 'lucide-react';
+import { useState } from 'react';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -33,6 +36,7 @@ const formSchema = z.object({
 
 export function CreateTopic() {
   const navigate = useNavigate();
+  const [error, setError] = useState<string>('');
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: 'onSubmit',
@@ -60,8 +64,16 @@ export function CreateTopic() {
         },
       });
       navigate('/topics');
-    } catch (err) {
-      console.error(err);
+    } catch (err: unknown) {
+      if (typeof err === 'string') {
+        setError(err);
+        return;
+      }
+      if (err instanceof Error) {
+        setError(err.message);
+        return;
+      }
+      setError('An error occurred. Please try again.');
     }
   }
 
@@ -208,6 +220,15 @@ export function CreateTopic() {
           <Button type="submit" className="w-full">
             Create
           </Button>
+          {error && (
+            <div className="mb-4 min-w-72">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            </div>
+          )}
         </form>
       </Form>
     </div>

@@ -97,6 +97,8 @@ pub async fn create_topic<'a>(topic: Topic<'a>) -> Result<(), String> {
         let opts = AdminOptions::new();
 
         let retention_time_str = topic.retention_time.to_string();
+        let insync_replicas = topic.insync_replicas.to_string();
+        let max_message_bytes = topic.size_limit.to_string();
         let cleanup_policy = topic.cleanup_policy.to_ascii_lowercase();
         let new_topic = NewTopic::new(
             topic.name,
@@ -104,7 +106,9 @@ pub async fn create_topic<'a>(topic: Topic<'a>) -> Result<(), String> {
             TopicReplication::Fixed(topic.replication_factor),
         )
         .set("retention.ms", &retention_time_str)
-        .set("cleanup.policy", &cleanup_policy);
+        .set("cleanup.policy", &cleanup_policy)
+        .set("min.insync.replicas", &insync_replicas)
+        .set("max.message.bytes", &max_message_bytes);
 
         let result = admin_client
             .create_topics(&[new_topic], &opts)

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Topics } from '@/components/pages/Topics';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { CreateTopic } from '@/components/pages/CreateTopic.tsx';
+import { Topic } from '@/components/pages/Topic.tsx';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -78,6 +79,7 @@ function App() {
             <Route path="/" Component={Topics} />
             <Route path="/topics" Component={Topics} />
             <Route path="/schema" Component={() => null} />
+            <Route path="/topic/:name" Component={Topic} />
             <Route path="/create" Component={CreateTopic} />
           </Routes>
         </ResizablePanel>

@@ -115,7 +115,6 @@ pub async fn create_topic<'a>(topic: Topic<'a>) -> Result<(), String> {
             .await
             .map_err(|err| err.to_string())?;
 
-        println!("{:?}", result);
         match result.len() {
             1 => match &result[0] {
                 Ok(_) => {

@@ -110,7 +110,7 @@ export function Topics() {
           </TableHeader>
           <TableBody>
             {topics.map(topic => (
-              <TableRow key={topic.name}>
+              <TableRow key={topic.name} onClick={() => navigate(`/topic/${topic.name}`)}>
                 <TableCell colSpan={2} className="font-medium text-left pl-0">
                   <div className="flex items-center space-x-2">
                     <Checkbox

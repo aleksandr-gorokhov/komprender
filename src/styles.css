@@ -777,6 +777,10 @@ body {
   min-height: 200px;
 }
 
+.min-h-screen {
+  min-height: 100vh;
+}
+
 .w-2 {
   width: 0.5rem;
 }

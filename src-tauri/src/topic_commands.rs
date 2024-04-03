@@ -1,6 +1,4 @@
-use rdkafka::admin::{AdminClient, AdminOptions};
-use rdkafka::ClientConfig;
-use rdkafka::config::FromClientConfig;
+use rdkafka::admin::AdminOptions;
 use rdkafka::consumer::Consumer;
 
 use crate::kafka_connection::KafkaConnection;
@@ -8,7 +6,7 @@ use crate::TopicResult;
 
 #[tauri::command]
 pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
-    let kafka = KafkaConnection::get_instance().await.lock().await;
+    let kafka = KafkaConnection::get_consumer_instance().await.lock().await;
     if let Some(consumer) = &*kafka {
         let metadata = consumer
             .fetch_metadata(None, std::time::Duration::from_secs(10))
@@ -50,16 +48,20 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
 
 #[tauri::command]
 pub async fn drop_topics(topic_names: Vec<&str>) -> Result<(), String> {
-    let mut config = ClientConfig::new();
-    let client_config = config.set("bootstrap.servers", "kafka:9092");
-    let admin_client = AdminClient::from_config(&client_config).map_err(|err| err.to_string())?;
-
-    let opts = AdminOptions::new();
-
-    admin_client
-        .delete_topics(&topic_names, &opts)
+    let admin_client = KafkaConnection::get_admin_client_instance()
         .await
-        .map_err(|err| err.to_string())?;
+        .lock()
+        .await;
 
-    Ok(())
+    if let Some(admin_client) = &*admin_client {
+        let opts = AdminOptions::new();
+
+        admin_client
+            .delete_topics(&topic_names, &opts)
+            .await
+            .map_err(|err| err.to_string())?;
+
+        return Ok(());
+    }
+    Err("Kafka connection not established".to_string())
 }

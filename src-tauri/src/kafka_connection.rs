@@ -1,8 +1,11 @@
 use std::path::PathBuf;
 
 use once_cell::sync::Lazy;
-use rdkafka::consumer::{BaseConsumer, Consumer};
+use rdkafka::admin::AdminClient;
+use rdkafka::client::DefaultClientContext;
 use rdkafka::ClientConfig;
+use rdkafka::config::FromClientConfig;
+use rdkafka::consumer::{BaseConsumer, Consumer};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -15,16 +18,29 @@ struct Brokers {
     brokers: Vec<String>,
 }
 
-pub static KAFKA_CONNECTION: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
+pub static KAFKA_CONSUMER: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
+pub static KAFKA_ADMIN_CLIENT: Lazy<Mutex<Option<AdminClient<DefaultClientContext>>>> =
+    Lazy::new(|| Mutex::new(None));
 
 impl KafkaConnection {
-    pub async fn get_instance() -> &'static Mutex<Option<BaseConsumer>> {
-        &KAFKA_CONNECTION
+    pub async fn get_consumer_instance() -> &'static Mutex<Option<BaseConsumer>> {
+        &KAFKA_CONSUMER
+    }
+
+    pub async fn get_admin_client_instance(
+    ) -> &'static Mutex<Option<AdminClient<DefaultClientContext>>> {
+        &KAFKA_ADMIN_CLIENT
     }
 
     pub async fn disconnect() -> Result<(), String> {
-        let mut kafka_consumer_guard = KafkaConnection::get_instance().await.lock().await;
+        let mut kafka_consumer_guard = KafkaConnection::get_consumer_instance().await.lock().await;
         *kafka_consumer_guard = None;
+
+        let mut kafka_admin_client_guard = KafkaConnection::get_admin_client_instance()
+            .await
+            .lock()
+            .await;
+        *kafka_admin_client_guard = None;
 
         Ok(())
     }
@@ -37,11 +53,19 @@ impl KafkaConnection {
         if broker.contains(',') {
             return Err("Cluster connection are not supported yet".to_string());
         }
+
+        let broker = if !broker.contains(':') {
+            format!("{}:9092", broker)
+        } else {
+            broker.to_string()
+        };
+
         println!("Connecting to Kafka broker: {}", broker);
-        let consumer: BaseConsumer = ClientConfig::new()
-            .set("bootstrap.servers", broker)
-            .create()
-            .map_err(|e| e.to_string())?;
+        let mut config = ClientConfig::new();
+        let client_config = config.set("bootstrap.servers", broker.clone());
+        let consumer: BaseConsumer = client_config.create().map_err(|e| e.to_string())?;
+        let admin_client =
+            AdminClient::from_config(&client_config).map_err(|err| err.to_string())?;
 
         match consumer.fetch_metadata(None, std::time::Duration::from_secs(1)) {
             Ok(_) => println!(
@@ -57,18 +81,31 @@ impl KafkaConnection {
         }
         println!("Connected to Kafka broker: {}", broker);
 
-        KafkaConnection::store_broker(broker)
+        KafkaConnection::store_broker(&broker)
             .await
             .map_err(|e| e.to_string())?;
 
-        let mut kafka_consumer_guard = KafkaConnection::get_instance().await.lock().await;
+        let mut kafka_consumer_guard = KafkaConnection::get_consumer_instance().await.lock().await;
         match &*kafka_consumer_guard {
-            Some(_) => Ok(true),
+            Some(_) => {}
             None => {
                 *kafka_consumer_guard = Some(consumer);
-                Ok(true)
             }
         }
+
+        let mut kafka_admin_client_guard = KafkaConnection::get_admin_client_instance()
+            .await
+            .lock()
+            .await;
+
+        match &*kafka_admin_client_guard {
+            Some(_) => {}
+            None => {
+                *kafka_admin_client_guard = Some(admin_client);
+            }
+        }
+
+        Ok(true)
     }
 
     pub async fn get_saved_brokers() -> Result<Vec<String>, String> {

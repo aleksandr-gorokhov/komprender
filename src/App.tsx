@@ -5,7 +5,6 @@ import { Connect } from '@/components/pages/Connect';
 import { Button } from '@/components/ui/button';
 import { Topics } from '@/components/pages/Topics';
 import { Route, Routes, useNavigate } from 'react-router-dom';
-import { TestContent } from '@/components/pages/TestContent.tsx';
 import { CreateTopic } from '@/components/pages/CreateTopic.tsx';
 
 function App() {
@@ -44,7 +43,7 @@ function App() {
 
   return (
     <div>
-      <ResizablePanelGroup direction="horizontal" className="min-h-[200px] rounded-lg border">
+      <ResizablePanelGroup direction="horizontal" className="min-h-screen rounded-lg border">
         <ResizablePanel defaultSize={25}>
           <div className="flex flex-col h-full items-start justify-start p-10">
             <Button
@@ -78,7 +77,7 @@ function App() {
           <Routes>
             <Route path="/" Component={Topics} />
             <Route path="/topics" Component={Topics} />
-            <Route path="/schema" Component={TestContent} />
+            <Route path="/schema" Component={() => null} />
             <Route path="/create" Component={CreateTopic} />
           </Routes>
         </ResizablePanel>

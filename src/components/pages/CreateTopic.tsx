@@ -7,9 +7,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
+import { invoke } from '@tauri-apps/api/tauri';
+import { useNavigate } from 'react-router-dom';
 
 const formSchema = z.object({
-  topicName: z.string().min(2, {
+  name: z.string().min(2, {
     message: 'Topic name must be at least 2 characters.',
   }),
   partitions: z.coerce.number({ invalid_type_error: 'Number of partitions must be a number.' }).min(1, {
@@ -30,11 +32,12 @@ const formSchema = z.object({
 });
 
 export function CreateTopic() {
+  const navigate = useNavigate();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     mode: 'onSubmit',
     defaultValues: {
-      topicName: '',
+      name: '',
       partitions: 1,
       cleanupPolicy: 'delete',
       insyncReplicas: 1,
@@ -44,8 +47,22 @@ export function CreateTopic() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      await invoke('create_topic', {
+        topic: {
+          cleanup_policy: values.cleanupPolicy,
+          insync_replicas: values.insyncReplicas,
+          replication_factor: values.replicationFactor,
+          retention_time: values.retentionTime,
+          size_limit: values.sizeLimit,
+          ...values,
+        },
+      });
+      navigate('/topics');
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function preventString(e: any) {
@@ -58,7 +75,7 @@ export function CreateTopic() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full">
           <FormField
             control={form.control}
-            name="topicName"
+            name="name"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Topic Name</FormLabel>

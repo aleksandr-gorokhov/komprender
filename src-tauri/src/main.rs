@@ -40,6 +40,7 @@ async fn main() {
             connect,
             topic_commands::fetch_topics,
             topic_commands::drop_topics,
+            topic_commands::create_topic,
             disconnect,
             fetch_saved_brokers,
         ])

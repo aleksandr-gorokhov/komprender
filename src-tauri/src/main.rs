@@ -2,8 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crate::kafka_connection::KafkaConnection;
+use crate::producer_commands::produce_message;
+use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
 
 mod kafka_connection;
+mod producer_commands;
 mod topic_commands;
 
 #[tauri::command]
@@ -29,10 +32,11 @@ async fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             connect,
-            topic_commands::fetch_topics,
-            topic_commands::fetch_topic,
-            topic_commands::drop_topics,
-            topic_commands::create_topic,
+            fetch_topics,
+            fetch_topic,
+            drop_topics,
+            create_topic,
+            produce_message,
             disconnect,
             fetch_saved_brokers,
         ])

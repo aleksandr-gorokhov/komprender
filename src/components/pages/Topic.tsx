@@ -30,6 +30,10 @@ export function Topic() {
     })();
   }, [name]);
 
+  async function produceMessage() {
+    await invoke('produce_message');
+  }
+
   if (!topic) {
     return <div className="flex h-full items-start justify-center pt-6">Loading...</div>;
   }
@@ -46,7 +50,9 @@ export function Topic() {
           <Separator orientation="vertical" />
           <div>{topic.partitions.reduce((acc, nextPartition) => acc + nextPartition.messages, 0)} messages</div>
           <Separator orientation="vertical" />
-          <Button variant="secondary">Produce message</Button>
+          <Button variant="secondary" onClick={() => produceMessage()}>
+            Produce message
+          </Button>
         </div>
       </div>
 

@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use rdkafka::admin::AdminClient;
 use rdkafka::client::DefaultClientContext;
-use rdkafka::ClientConfig;
 use rdkafka::config::FromClientConfig;
 use rdkafka::consumer::{BaseConsumer, Consumer};
+use rdkafka::producer::FutureProducer;
+use rdkafka::ClientConfig;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -19,12 +20,17 @@ struct Brokers {
 }
 
 pub static KAFKA_CONSUMER: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
+pub static KAFKA_PRODUCER: Lazy<Mutex<Option<FutureProducer>>> = Lazy::new(|| Mutex::new(None));
 pub static KAFKA_ADMIN_CLIENT: Lazy<Mutex<Option<AdminClient<DefaultClientContext>>>> =
     Lazy::new(|| Mutex::new(None));
 
 impl KafkaConnection {
     pub async fn get_consumer_instance() -> &'static Mutex<Option<BaseConsumer>> {
         &KAFKA_CONSUMER
+    }
+
+    pub async fn get_producer_instance() -> &'static Mutex<Option<FutureProducer>> {
+        &KAFKA_PRODUCER
     }
 
     pub async fn get_admin_client_instance(
@@ -41,6 +47,12 @@ impl KafkaConnection {
             .lock()
             .await;
         *kafka_admin_client_guard = None;
+
+        let mut kafka_producer_guard = KafkaConnection::get_admin_client_instance()
+            .await
+            .lock()
+            .await;
+        *kafka_producer_guard = None;
 
         Ok(())
     }
@@ -66,6 +78,7 @@ impl KafkaConnection {
         let consumer: BaseConsumer = client_config.create().map_err(|e| e.to_string())?;
         let admin_client =
             AdminClient::from_config(&client_config).map_err(|err| err.to_string())?;
+        let producer: FutureProducer = client_config.create().map_err(|e| e.to_string())?;
 
         match consumer.fetch_metadata(None, std::time::Duration::from_secs(1)) {
             Ok(_) => println!(
@@ -102,6 +115,15 @@ impl KafkaConnection {
             Some(_) => {}
             None => {
                 *kafka_admin_client_guard = Some(admin_client);
+            }
+        }
+
+        let mut kafka_producer_guard = KafkaConnection::get_producer_instance().await.lock().await;
+
+        match &*kafka_producer_guard {
+            Some(_) => {}
+            None => {
+                *kafka_producer_guard = Some(producer);
             }
         }
 

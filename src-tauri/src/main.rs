@@ -1,19 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use serde::{Deserialize, Serialize};
-
 use crate::kafka_connection::KafkaConnection;
 
 mod kafka_connection;
 mod topic_commands;
-
-#[derive(Serialize, Deserialize)]
-struct TopicResult {
-    name: String,
-    partitions: usize,
-    messages: i64,
-}
 
 #[tauri::command]
 async fn connect(broker: &str) -> Result<bool, String> {
@@ -39,6 +30,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             connect,
             topic_commands::fetch_topics,
+            topic_commands::fetch_topic,
             topic_commands::drop_topics,
             topic_commands::create_topic,
             disconnect,

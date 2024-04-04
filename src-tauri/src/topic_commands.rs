@@ -3,7 +3,6 @@ use rdkafka::consumer::Consumer;
 use serde::{Deserialize, Serialize};
 
 use crate::kafka_connection::KafkaConnection;
-use crate::TopicResult;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CleanupPolicy {
@@ -21,6 +20,29 @@ pub struct Topic<'a> {
     replication_factor: i32,
     retention_time: usize,
     size_limit: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TopicResult {
+    name: String,
+    partitions: usize,
+    messages: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Partition {
+    id: i32,
+    leader: i32,
+    replicas: Vec<i32>,
+    low: i64,
+    high: i64,
+    messages: i64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TopicPageResult {
+    name: String,
+    partitions: Vec<Partition>,
 }
 
 #[tauri::command]
@@ -66,6 +88,50 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
 }
 
 #[tauri::command]
+pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
+    let kafka = KafkaConnection::get_consumer_instance().await.lock().await;
+    if let Some(consumer) = &*kafka {
+        let metadata = consumer
+            .fetch_metadata(Some(name), std::time::Duration::from_secs(10))
+            .unwrap();
+
+        let mut topic_info = TopicPageResult {
+            name: name.to_owned(),
+            partitions: vec![],
+        };
+
+        for topic in metadata.topics().iter() {
+            let topic_name = topic.name();
+
+            for partition_metadata in topic.partitions().iter() {
+                let mut partition = Partition {
+                    id: partition_metadata.id(),
+                    leader: partition_metadata.leader(),
+                    replicas: partition_metadata.replicas().to_vec(),
+                    low: 0,
+                    high: 0,
+                    messages: 0,
+                };
+                if let Ok((low, high)) = consumer.fetch_watermarks(
+                    topic_name,
+                    partition.id,
+                    std::time::Duration::from_secs(10),
+                ) {
+                    partition.low = low;
+                    partition.high = high;
+                    partition.messages += high.saturating_sub(low);
+                }
+
+                topic_info.partitions.push(partition);
+            }
+        }
+        Ok(topic_info)
+    } else {
+        Err("Kafka connection not established".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn drop_topics(topic_names: Vec<&str>) -> Result<(), String> {
     let admin_client = KafkaConnection::get_admin_client_instance()
         .await
@@ -87,7 +153,6 @@ pub async fn drop_topics(topic_names: Vec<&str>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn create_topic<'a>(topic: Topic<'a>) -> Result<(), String> {
-    println!("{:?}", topic);
     let admin_client = KafkaConnection::get_admin_client_instance()
         .await
         .lock()

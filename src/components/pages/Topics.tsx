@@ -115,6 +115,7 @@ export function Topics() {
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id={topic.name}
+                      onClick={e => e.stopPropagation()}
                       onCheckedChange={() => select(topic.name)}
                       checked={checkedTopics.includes('all') || checkedTopics.includes(topic.name)}
                       className="mr-2 ml-6"

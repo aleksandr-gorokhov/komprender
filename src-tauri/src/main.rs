@@ -2,24 +2,27 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crate::kafka_connection::KafkaConnection;
-use crate::producer_commands::produce_message;
+use crate::producer_commands::produce_message_avro;
+use crate::schema_registry::{fetch_schema, fetch_sr_subjects, SchemaRegistry};
 use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
 
 mod kafka_connection;
 mod producer_commands;
+mod schema_registry;
 mod topic_commands;
 
 #[tauri::command]
 async fn connect(broker: &str) -> Result<bool, String> {
-    println!("Connecting to Kafka broker: {}", broker);
-    KafkaConnection::connect(broker).await
+    KafkaConnection::connect(broker).await?;
+    SchemaRegistry::connect("").await
 }
 
 #[tauri::command]
 async fn disconnect() -> Result<(), String> {
-    println!("Disconnecting from Kafka broker");
+    println!("Disconnecting from Kafka and SR");
 
-    KafkaConnection::disconnect().await
+    KafkaConnection::disconnect().await?;
+    SchemaRegistry::disconnect().await
 }
 
 #[tauri::command]
@@ -36,7 +39,9 @@ async fn main() {
             fetch_topic,
             drop_topics,
             create_topic,
-            produce_message,
+            produce_message_avro,
+            fetch_sr_subjects,
+            fetch_schema,
             disconnect,
             fetch_saved_brokers,
         ])

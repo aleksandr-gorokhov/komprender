@@ -47,7 +47,7 @@ pub struct TopicPageResult {
 
 #[tauri::command]
 pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
-    let kafka = KafkaConnection::get_consumer_instance().await.lock().await;
+    let kafka = KafkaConnection::get_consumer_instance().lock().await;
     if let Some(consumer) = &*kafka {
         let metadata = consumer
             .fetch_metadata(None, std::time::Duration::from_secs(10))
@@ -89,7 +89,7 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
 
 #[tauri::command]
 pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
-    let kafka = KafkaConnection::get_consumer_instance().await.lock().await;
+    let kafka = KafkaConnection::get_consumer_instance().lock().await;
     if let Some(consumer) = &*kafka {
         let metadata = consumer
             .fetch_metadata(Some(name), std::time::Duration::from_secs(10))
@@ -133,10 +133,7 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
 
 #[tauri::command]
 pub async fn drop_topics(topic_names: Vec<&str>) -> Result<(), String> {
-    let admin_client = KafkaConnection::get_admin_client_instance()
-        .await
-        .lock()
-        .await;
+    let admin_client = KafkaConnection::get_admin_client_instance().lock().await;
 
     if let Some(admin_client) = &*admin_client {
         let opts = AdminOptions::new();
@@ -153,10 +150,7 @@ pub async fn drop_topics(topic_names: Vec<&str>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn create_topic<'a>(topic: Topic<'a>) -> Result<(), String> {
-    let admin_client = KafkaConnection::get_admin_client_instance()
-        .await
-        .lock()
-        .await;
+    let admin_client = KafkaConnection::get_admin_client_instance().lock().await;
 
     if let Some(admin_client) = &*admin_client {
         let opts = AdminOptions::new();

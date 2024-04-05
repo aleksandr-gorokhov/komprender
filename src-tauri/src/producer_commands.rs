@@ -1,7 +1,7 @@
 use apache_avro::types::Value;
 use rdkafka::producer::FutureRecord;
 use schema_registry_converter::async_impl::avro::AvroEncoder;
-use schema_registry_converter::async_impl::schema_registry::{get_schema_by_subject, SrSettings};
+use schema_registry_converter::async_impl::schema_registry::SrSettings;
 use schema_registry_converter::schema_registry_common::SubjectNameStrategy::RecordNameStrategy;
 use serde_json::{Map as JsonMap, Value as JsonValue};
 use tokio::time::Duration;
@@ -9,7 +9,12 @@ use tokio::time::Duration;
 use crate::kafka_connection::KafkaConnection;
 
 #[tauri::command]
-pub async fn produce_message(topic: &str, payload: &str) -> Result<(), String> {
+pub async fn produce_message_avro(
+    topic: &str,
+    payload: &str,
+    schema_name: &str,
+) -> Result<(), String> {
+    println!("{}", schema_name);
     let parsed_json: JsonValue = serde_json::from_str(payload).map_err(|e| {
         println!("Error parsing JSON: {}", e);
         e.to_string()
@@ -18,22 +23,7 @@ pub async fn produce_message(topic: &str, payload: &str) -> Result<(), String> {
         .set_timeout(Duration::from_secs(5))
         .build()
         .unwrap();
-    let key_strategy = RecordNameStrategy("domain-events-value".to_string());
-    let schema = get_schema_by_subject(&sr_settings, &key_strategy)
-        .await
-        .map_err(|e| {
-            println!("Error fetching schema: {}", e);
-            e.to_string()
-        })?;
-
-    let schema_parsed: JsonValue = serde_json::from_str(&schema.schema).map_err(|e| {
-        println!("Error parsing JSON: {}", e);
-        e.to_string()
-    })?;
-    // let avro_payload = match parsed_json {
-    //     JsonValue::Object(map) => convert_json_map_to_avro(map, &schema_parsed)?,
-    //     _ => return Err("Payload must be a JSON object".to_string()),
-    // };
+    let key_strategy = RecordNameStrategy(schema_name.to_string());
 
     let encoder = AvroEncoder::new(sr_settings.clone());
 
@@ -42,19 +32,9 @@ pub async fn produce_message(topic: &str, payload: &str) -> Result<(), String> {
         _ => return Err("Payload must be a JSON object".to_string().into()),
     };
 
-    // let bytes_old = encoder
-    //     .encode(
-    //         avro_payload
-    //             .iter()
-    //             .map(|(k, v)| (k.as_str(), v.clone()))
-    //             .collect(),
-    //         key_strategy,
-    //     )
-    //     .await;
-
     if let Ok(bytes) = bytes {
         println!("success encoding");
-        let producer = KafkaConnection::get_producer_instance().await.lock().await;
+        let producer = KafkaConnection::get_producer_instance().lock().await;
         if let Some(producer) = &*producer {
             let produce_future = producer.send(
                 FutureRecord::to(topic).key(&()).payload(&bytes),
@@ -86,6 +66,7 @@ fn convert_json_map_to_avro(
         .collect::<Result<Vec<_>, _>>()
 }
 
+// will just keep it as a reminder to read docs first and then waste 5 hours on doing something somebody already did
 fn convert_json_value_to_avro(
     key: String,
     value: JsonValue,

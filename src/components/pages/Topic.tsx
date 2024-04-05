@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.tsx';
 import { Separator } from '@/components/ui/separator.tsx';
 import { Button } from '@/components/ui/button.tsx';
+import { Producer } from '@/components/pages/Producer.tsx';
 
 interface IPartition {
   id: number;
@@ -22,6 +23,7 @@ interface ITopicInfo {
 export function Topic() {
   let { name } = useParams();
   const [topic, setTopic] = useState<ITopicInfo | null>(null);
+  const [state, setState] = useState<string>('partitions');
 
   useEffect(() => {
     (async () => {
@@ -30,8 +32,12 @@ export function Topic() {
     })();
   }, [name]);
 
-  async function produceMessage() {
-    await invoke('produce_message');
+  async function openProducer() {
+    setState('producer');
+  }
+
+  if (!name) {
+    return <div>404</div>;
   }
 
   if (!topic) {
@@ -50,57 +56,61 @@ export function Topic() {
           <Separator orientation="vertical" />
           <div>{topic.partitions.reduce((acc, nextPartition) => acc + nextPartition.messages, 0)} messages</div>
           <Separator orientation="vertical" />
-          <Button variant="secondary" onClick={() => produceMessage()}>
+          <Button variant="secondary" onClick={() => openProducer()}>
             Produce message
           </Button>
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead colSpan={2} className="pl-6">
-              <div className="flex items-center space-x-2">
-                <label
-                  htmlFor="select-all"
-                  className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  ID
-                </label>
-              </div>
-            </TableHead>
-            <TableHead className="text-center">Replicas</TableHead>
-            <TableHead className="text-center">Offset start</TableHead>
-            <TableHead className="text-center">Offset End</TableHead>
-            <TableHead className="text-right pr-6">Messages</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {topic.partitions.map(partition => (
-            <TableRow key={partition.id}>
-              <TableCell colSpan={2} className="font-medium text-left  pl-6">
+      {state === 'partitions' ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead colSpan={2} className="pl-6">
                 <div className="flex items-center space-x-2">
-                  <p className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    {partition.id}
-                  </p>
+                  <label
+                    htmlFor="select-all"
+                    className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    ID
+                  </label>
                 </div>
-              </TableCell>
-              <TableCell className="text-center">
-                [
-                {partition.replicas.map(replica => (
-                  <span key={replica + 'replica'} className={replica === partition.leader ? 'text-green-500' : ''}>
-                    {replica}
-                  </span>
-                ))}
-                ]
-              </TableCell>
-              <TableCell className="text-center pr-6">{partition.low}</TableCell>
-              <TableCell className="text-center pr-6">{partition.high}</TableCell>
-              <TableCell className="text-right pr-6">{partition.messages}</TableCell>
+              </TableHead>
+              <TableHead className="text-center">Replicas</TableHead>
+              <TableHead className="text-center">Offset start</TableHead>
+              <TableHead className="text-center">Offset End</TableHead>
+              <TableHead className="text-right pr-6">Messages</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {topic.partitions.map(partition => (
+              <TableRow key={partition.id}>
+                <TableCell colSpan={2} className="font-medium text-left  pl-6">
+                  <div className="flex items-center space-x-2">
+                    <p className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      {partition.id}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  [
+                  {partition.replicas.map(replica => (
+                    <span key={replica + 'replica'} className={replica === partition.leader ? 'text-green-500' : ''}>
+                      {replica}
+                    </span>
+                  ))}
+                  ]
+                </TableCell>
+                <TableCell className="text-center pr-6">{partition.low}</TableCell>
+                <TableCell className="text-center pr-6">{partition.high}</TableCell>
+                <TableCell className="text-right pr-6">{partition.messages}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <Producer topic={name} />
+      )}
     </div>
   );
 }

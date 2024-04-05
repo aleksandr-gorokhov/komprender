@@ -1,37 +1,61 @@
 use apache_avro::types::Value;
 use rdkafka::producer::FutureRecord;
 use schema_registry_converter::async_impl::avro::AvroEncoder;
-use schema_registry_converter::async_impl::schema_registry::SrSettings;
+use schema_registry_converter::async_impl::schema_registry::{get_schema_by_subject, SrSettings};
 use schema_registry_converter::schema_registry_common::SubjectNameStrategy::RecordNameStrategy;
+use serde_json::{Map as JsonMap, Value as JsonValue};
 use tokio::time::Duration;
 
 use crate::kafka_connection::KafkaConnection;
 
 #[tauri::command]
-pub async fn produce_message() -> Result<(), String> {
+pub async fn produce_message(topic: &str, payload: &str) -> Result<(), String> {
+    let parsed_json: JsonValue = serde_json::from_str(payload).map_err(|e| {
+        println!("Error parsing JSON: {}", e);
+        e.to_string()
+    })?;
     let sr_settings = SrSettings::new_builder(String::from("http://localhost:8081"))
         .set_timeout(Duration::from_secs(5))
         .build()
         .unwrap();
+    let key_strategy = RecordNameStrategy("domain-events-value".to_string());
+    let schema = get_schema_by_subject(&sr_settings, &key_strategy)
+        .await
+        .map_err(|e| {
+            println!("Error fetching schema: {}", e);
+            e.to_string()
+        })?;
 
-    let encoder = AvroEncoder::new(sr_settings);
-    let key_strategy = RecordNameStrategy("alerts-value".to_string());
-    let bytes = encoder
-        .encode(
-            vec![
-                ("id", Value::String("asd".to_string())),
-                ("createdAt", Value::Long(1712260161977)),
-                ("payload", Value::Bytes("Alice".as_bytes().to_vec())),
-                ("type", Value::String("Ebasos".to_string())),
-            ],
-            key_strategy,
-        )
-        .await;
+    let schema_parsed: JsonValue = serde_json::from_str(&schema.schema).map_err(|e| {
+        println!("Error parsing JSON: {}", e);
+        e.to_string()
+    })?;
+    // let avro_payload = match parsed_json {
+    //     JsonValue::Object(map) => convert_json_map_to_avro(map, &schema_parsed)?,
+    //     _ => return Err("Payload must be a JSON object".to_string()),
+    // };
+
+    let encoder = AvroEncoder::new(sr_settings.clone());
+
+    let bytes = match parsed_json {
+        serde_json::Value::Object(map) => encoder.encode_struct(map, &key_strategy).await,
+        _ => return Err("Payload must be a JSON object".to_string().into()),
+    };
+
+    // let bytes_old = encoder
+    //     .encode(
+    //         avro_payload
+    //             .iter()
+    //             .map(|(k, v)| (k.as_str(), v.clone()))
+    //             .collect(),
+    //         key_strategy,
+    //     )
+    //     .await;
 
     if let Ok(bytes) = bytes {
+        println!("success encoding");
         let producer = KafkaConnection::get_producer_instance().await.lock().await;
         if let Some(producer) = &*producer {
-            let topic = "huge-topic";
             let produce_future = producer.send(
                 FutureRecord::to(topic).key(&()).payload(&bytes),
                 Duration::from_secs(10),
@@ -43,8 +67,224 @@ pub async fn produce_message() -> Result<(), String> {
             }
         }
     } else if let Err(e) = bytes {
+        println!("Error encoding Avro: {}", e);
         return Err(e.to_string());
     }
 
     Ok(())
+}
+
+fn convert_json_map_to_avro(
+    map: JsonMap<String, JsonValue>,
+    schema: &JsonValue,
+) -> Result<Vec<(String, apache_avro::types::Value)>, String> {
+    map.into_iter()
+        .map(|(k, v)| {
+            let avro_val = convert_json_value_to_avro(k.clone(), v, schema)?;
+            Ok((k, avro_val))
+        })
+        .collect::<Result<Vec<_>, _>>()
+}
+
+fn convert_json_value_to_avro(
+    key: String,
+    value: JsonValue,
+    schema: &JsonValue,
+) -> Result<Value, String> {
+    let (field, field_type) = match schema {
+        serde_json::Value::Object(schema_obj) => {
+            if let serde_json::Value::Array(fields) = &schema_obj["fields"] {
+                let field = fields.iter().find(|item| {
+                    if let serde_json::Value::Object(obj) = item {
+                        obj.get("name").and_then(|n| n.as_str()) == Some(key.as_str())
+                    } else {
+                        false
+                    }
+                });
+                {
+                    if let Some(field) = field {
+                        match field["type"]["type"].clone() {
+                            serde_json::Value::String(s) => (&field["type"], s),
+                            _ => {
+                                if let serde_json::Value::String(s) = field["type"].clone() {
+                                    (&field["type"], s)
+                                } else if let serde_json::Value::Array(_) = field["type"].clone() {
+                                    (&field["type"], "string".to_string())
+                                } else {
+                                    (&field["type"], "".to_string())
+                                }
+                            }
+                        }
+                    } else {
+                        (&JsonValue::Null, "".to_string())
+                    }
+                }
+            } else {
+                (&JsonValue::Null, "".to_string())
+            }
+        }
+        _ => {
+            println!("Not object");
+            (&JsonValue::Null, "".to_string())
+        }
+    };
+
+    // println!("{}, {}", field_type, key);
+
+    match field_type.as_str() {
+        "string" => {
+            println!("String: {}", value);
+            Ok(Value::String(value.to_string()))
+        }
+        "long" => match value.as_i64() {
+            Some(val) => Ok(Value::Long(val)),
+            None => {
+                let err = format!("Invalid long value {}", key);
+                Err(err)
+            }
+        },
+        "int" => match value.as_i64() {
+            Some(val) => Ok(Value::Int(val as i32)),
+            None => {
+                let err = format!("Invalid int value {}", key);
+                Err(err)
+            }
+        },
+        "bytes" => Ok(Value::Bytes(Vec::from(value.to_string().as_bytes()))),
+        "float" => match value.as_i64() {
+            Some(val) => Ok(Value::Float(val as f32)),
+            None => {
+                let err = format!("Invalid float value {}", key);
+                Err(err)
+            }
+        },
+        "double" => match value.as_f64() {
+            Some(val) => Ok(Value::Double(val)),
+            None => {
+                let err = format!("Invalid double value {}", key);
+                Err(err)
+            }
+        },
+        "boolean" => match value.as_bool() {
+            Some(val) => Ok(Value::Boolean(val)),
+            None => {
+                let err = format!("Invalid boolean value {}", key);
+                Err(err)
+            }
+        },
+        "fixed" => {
+            let byte_array = value.as_array();
+
+            match byte_array {
+                Some(array) => {
+                    let bytes: Vec<u8> = array
+                        .iter()
+                        .filter_map(|val| {
+                            val.as_u64().and_then(|num| {
+                                if num <= u8::MAX as u64 {
+                                    Some(num as u8)
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .collect();
+
+                    Ok(Value::Fixed(array.len(), bytes))
+                }
+                None => {
+                    let err = format!("Invalid fixed value {}", key);
+                    Err(err)
+                }
+            }
+        }
+        // "enum" => Value::Enum(0, value.to_string()), // Placeholder for enum position
+        // "union" => Value::Union(0, Box::new(sub_value)), // Placeholder, needs actual handling
+        "array" => {
+            let casted_array = value.as_array();
+            match casted_array {
+                Some(array) => Ok(Value::Array(
+                    array
+                        .iter()
+                        .map(|val| Value::String(val.to_string()))
+                        .collect(),
+                )),
+                None => {
+                    let err = format!("Invalid array value {}", key);
+                    Err(err)
+                }
+            }
+        }
+        // "map" => Value::Map(Default::default()), // Placeholder, needs actual handling
+        "record" => match value {
+            JsonValue::Object(map) => {
+                // println!("{:?} \n\n----- {:?} \n\n-----", map, field);
+                if let Ok(result) = convert_json_map_to_avro(map, field) {
+                    println!("{:?}", result);
+                    Ok(Value::Record(result))
+                } else {
+                    let err = format!("Invalid record value {}", key);
+                    Err(err)
+                }
+            }
+            _ => return Err("Record type but value ain't no JSON".to_string()),
+        },
+        // "duration" => Value::Duration(Duration::new(0, 0)), // Placeholder, needs actual handling
+        // "decimal" => Value::Decimal(Decimal::new(0, 0)), // Placeholder, needs actual handling
+        // "uuid" => Value::Uuid(Uuid::nil()),
+        "date" => match value.as_i64() {
+            Some(val) => Ok(Value::Date(val as i32)),
+            None => {
+                let err = format!("Invalid date value {}", key);
+                Err(err)
+            }
+        },
+        "time-millis" => match value.as_i64() {
+            Some(val) => Ok(Value::TimeMillis(val as i32)),
+            None => {
+                let err = format!("Invalid double value {}", key);
+                Err(err)
+            }
+        },
+        "time-micros" => match value.as_i64() {
+            Some(val) => Ok(Value::TimeMicros(val)),
+            None => {
+                let err = format!("Invalid time-micros value {}", key);
+                Err(err)
+            }
+        },
+        "timestamp-millis" => match value.as_i64() {
+            Some(val) => Ok(Value::TimestampMillis(val)),
+            None => {
+                let err = format!("Invalid timestamp-micros value {}", key);
+                Err(err)
+            }
+        },
+        "timestamp-micros" => match value.as_i64() {
+            Some(val) => Ok(Value::TimestampMicros(val)),
+            None => {
+                let err = format!("Invalid timestamp-micros value {}", key);
+                Err(err)
+            }
+        },
+        "local-timestamp-millis" => match value.as_i64() {
+            Some(val) => Ok(Value::LocalTimestampMillis(val)),
+            None => {
+                let err = format!("Invalid local-timestamp-millis value {}", key);
+                Err(err)
+            }
+        },
+        "local-timestamp-micros" => match value.as_i64() {
+            Some(val) => Ok(Value::LocalTimestampMicros(val)),
+            None => {
+                let err = format!("Invalid local-timestamp-millis value {}", key);
+                Err(err)
+            }
+        },
+        _ => {
+            let err = format!("Unhandled type {} for key {}", field_type, key);
+            println!("{}", err);
+            Err(err)
+        }
+    }
 }

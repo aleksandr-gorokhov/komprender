@@ -49,7 +49,7 @@ export function ThemeToggle() {
   return (
     <div
       className={
-        'group absolute top-2 h-3 w-3 flex rounded-full items-center justify-center bg-gray-800 text-white ' +
+        'group absolute top-2 z-50 h-3 w-3 flex rounded-full items-center justify-center bg-gray-800 text-white ' +
         visibilityClass
       }
       style={{ left: '68px', backgroundColor: bgc }}

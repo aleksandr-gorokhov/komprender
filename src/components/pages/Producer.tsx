@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function Producer(props: { topic: string }) {
   const [message, setMessage] = useState<string>(``);
@@ -14,6 +15,7 @@ export function Producer(props: { topic: string }) {
   const [schema, setSchema] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
   async function produceMessageAvro() {
     setError('');
     if (!selectedSubject) {
@@ -27,6 +29,7 @@ export function Producer(props: { topic: string }) {
     try {
       setIsLoading(true);
       await invoke('produce_message_avro', { topic: props.topic, payload: message, schemaName: selectedSubject });
+      toast.success('Message has been sent');
     } catch (err) {
       if (typeof err === 'string') {
         setError(err);
@@ -45,6 +48,7 @@ export function Producer(props: { topic: string }) {
   }
 
   async function produceMessageJson() {
+    setError('');
     if (!message) {
       setError('Please enter a message');
       return;
@@ -52,6 +56,7 @@ export function Producer(props: { topic: string }) {
     try {
       setIsLoading(true);
       await invoke('produce_message_json', { topic: props.topic, payload: message });
+      toast.success('Message has been sent');
     } catch (err) {
       if (typeof err === 'string') {
         setError(err);
@@ -161,7 +166,9 @@ export function Producer(props: { topic: string }) {
                 </SelectTrigger>
                 <SelectContent className="mb-6">
                   {subjects.map(subject => (
-                    <SelectItem value={subject}>{subject}</SelectItem>
+                    <SelectItem key={subject + 'subjectSelectorKey'} value={subject}>
+                      {subject}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

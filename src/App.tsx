@@ -44,30 +44,31 @@ function App() {
 
   return (
     <div>
-      <ResizablePanelGroup direction="horizontal" className="min-h-screen rounded-lg border">
+      <ResizablePanelGroup direction="horizontal" className="min-h-screen rounded-lg border relative">
         <ResizablePanel defaultSize={25}>
-          <div className="flex flex-col h-full items-start justify-start p-10">
-            <Button
-              variant={screen === 'topics' ? 'outline' : 'default'}
-              className="m-2 ml-0 w-full"
-              onClick={() => {
-                setScreen('topics');
-                navigate('/topics');
-              }}
-            >
-              Topics
-            </Button>
-            <Button
-              variant={screen === 'schema' ? 'outline' : 'default'}
-              className="m-2 ml-0 w-full"
-              onClick={() => {
-                setScreen('schema');
-                navigate('/schema');
-              }}
-            >
-              Schema Registry
-            </Button>
-
+          <div className="flex flex-col h-screen w-full items-start justify-between p-10 top-0 left-0">
+            <div className="w-full">
+              <Button
+                variant={screen === 'topics' ? 'outline' : 'default'}
+                className="m-2 ml-0 w-full"
+                onClick={() => {
+                  setScreen('topics');
+                  navigate('/topics');
+                }}
+              >
+                Topics
+              </Button>
+              <Button
+                variant={screen === 'schema' ? 'outline' : 'default'}
+                className="m-2 ml-0 w-full"
+                onClick={() => {
+                  setScreen('schema');
+                  navigate('/schema');
+                }}
+              >
+                Schema Registry
+              </Button>
+            </div>
             <Button variant="destructive" className="m-2 ml-0 w-full" onClick={disconnect}>
               Disconnect
             </Button>

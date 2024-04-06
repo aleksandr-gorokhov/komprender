@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crate::kafka_connection::KafkaConnection;
-use crate::producer_commands::produce_message_avro;
+use crate::producer_commands::{produce_message_avro, produce_message_json};
 use crate::schema_registry::{fetch_schema, fetch_sr_subjects, SchemaRegistry};
 use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
 
@@ -40,6 +40,7 @@ async fn main() {
             drop_topics,
             create_topic,
             produce_message_avro,
+            produce_message_json,
             fetch_sr_subjects,
             fetch_schema,
             disconnect,

@@ -54,6 +54,32 @@ pub async fn produce_message_avro(
     Ok(())
 }
 
+#[tauri::command]
+pub async fn produce_message_json(topic: &str, payload: &str) -> Result<(), String> {
+    let producer = KafkaConnection::get_producer_instance().lock().await;
+    if let Some(producer) = &*producer {
+        let produce_future = producer.send(
+            FutureRecord::to(topic).key(&()).payload(payload),
+            Duration::from_secs(10),
+        );
+
+        return match produce_future.await {
+            Ok(delivery) => {
+                println!("Sent: {:?}", delivery);
+                Ok(())
+            }
+            Err((e, _)) => {
+                let err = format!("Error producing message: {:?}", e);
+                println!("{}", err);
+
+                Err(err)
+            }
+        };
+    }
+
+    Err("Kafka connection not established".to_string())
+}
+
 fn convert_json_map_to_avro(
     map: JsonMap<String, JsonValue>,
     schema: &JsonValue,

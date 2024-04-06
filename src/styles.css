@@ -632,6 +632,10 @@ body {
   visibility: visible;
 }
 
+.fixed {
+  position: fixed;
+}
+
 .absolute {
   position: absolute;
 }
@@ -868,6 +872,10 @@ body {
   height: 1px;
 }
 
+.h-screen {
+  height: 100vh;
+}
+
 .max-h-96 {
   max-height: 24rem;
 }
@@ -939,6 +947,10 @@ body {
 
 .w-8 {
   width: 2rem;
+}
+
+.w-\[25\%\] {
+  width: 25%;
 }
 
 .min-w-72 {

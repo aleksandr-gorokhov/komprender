@@ -16,46 +16,27 @@ export function Producer(props: { topic: string }) {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  async function produceMessageAvro() {
+  async function produceMessage() {
     setError('');
-    if (!selectedSubject) {
+    if (state === 'avro' && !selectedSubject) {
       setError('Please select a schema');
       return;
     }
+
     if (!message) {
       setError('Please enter a message');
       return;
     }
+
+    const action = state === 'avro' ? 'produce_message_avro' : 'produce_message_json';
+    const payload =
+      state === 'avro'
+        ? { topic: props.topic, payload: message, schemaName: selectedSubject }
+        : { topic: props.topic, payload: message };
+
     try {
       setIsLoading(true);
-      await invoke('produce_message_avro', { topic: props.topic, payload: message, schemaName: selectedSubject });
-      toast.success('Message has been sent');
-    } catch (err) {
-      if (typeof err === 'string') {
-        setError(err);
-        return;
-      }
-
-      if (err instanceof Error) {
-        setError(err.message);
-        return;
-      }
-
-      setError(String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function produceMessageJson() {
-    setError('');
-    if (!message) {
-      setError('Please enter a message');
-      return;
-    }
-    try {
-      setIsLoading(true);
-      await invoke('produce_message_json', { topic: props.topic, payload: message });
+      await invoke(action, payload);
       toast.success('Message has been sent');
     } catch (err) {
       if (typeof err === 'string') {
@@ -121,7 +102,7 @@ export function Producer(props: { topic: string }) {
       {state === 'json' && (
         <>
           <Textarea className="w-full" onInput={handleInput} value={message} placeholder="Enter message here" />
-          <Button onClick={() => produceMessageJson()} disabled={isLoading} className="mt-6 mb-6">
+          <Button onClick={() => produceMessage()} disabled={isLoading} className="mt-6 mb-6">
             Send
           </Button>
           {error && (
@@ -146,7 +127,7 @@ export function Producer(props: { topic: string }) {
           <div className="flex flex-row w-full">
             <div className="flex flex-col w-1/2 mr-6">
               <Textarea className="w-full" onInput={handleInput} value={message} placeholder="Enter message here" />
-              <Button onClick={() => produceMessageAvro()} disabled={isLoading} className="mt-6 mb-6">
+              <Button onClick={() => produceMessage()} disabled={isLoading} className="mt-6 mb-6">
                 Send
               </Button>
               {error && (

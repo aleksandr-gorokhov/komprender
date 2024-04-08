@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Separator } from '@/components/ui/separator.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Producer } from '@/components/pages/Producer.tsx';
+import { Consumer } from '@/components/pages/Consumer.tsx';
 
 interface IPartition {
   id: number;
@@ -23,7 +24,7 @@ interface ITopicInfo {
 export function Topic() {
   let { name } = useParams();
   const [topic, setTopic] = useState<ITopicInfo | null>(null);
-  const [state, setState] = useState<string>('partitions');
+  const [state, setState] = useState<'partitions' | 'producer' | 'consumer'>('partitions');
 
   useEffect(() => {
     (async () => {
@@ -34,6 +35,10 @@ export function Topic() {
 
   async function openProducer() {
     setState('producer');
+  }
+
+  async function openConsumer() {
+    setState('consumer');
   }
 
   if (!name) {
@@ -58,6 +63,9 @@ export function Topic() {
           <Separator orientation="vertical" />
           <Button variant="secondary" onClick={() => openProducer()}>
             Produce message
+          </Button>
+          <Button variant="secondary" onClick={() => openConsumer()}>
+            Consume messages
           </Button>
         </div>
       </div>
@@ -108,8 +116,10 @@ export function Topic() {
             ))}
           </TableBody>
         </Table>
-      ) : (
+      ) : state === 'producer' ? (
         <Producer topic={name} />
+      ) : (
+        <Consumer topic={name} />
       )}
     </div>
   );

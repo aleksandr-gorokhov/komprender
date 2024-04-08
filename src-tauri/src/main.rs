@@ -32,6 +32,7 @@ async fn fetch_saved_brokers() -> Result<Vec<String>, String> {
 
 #[tokio::main]
 async fn main() {
+    let _ = fix_path_env::fix();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             connect,

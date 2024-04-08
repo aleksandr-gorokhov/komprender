@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input.tsx';
+import { invoke } from '@tauri-apps/api/tauri';
 
 export function Consumer(props: { topic: string }) {
   const [fromBeginning, setFromBeginning] = useState<boolean>(false);
@@ -43,8 +44,13 @@ export function Consumer(props: { topic: string }) {
     e.target.value = e.target.value.replace(/\D/g, '');
   }
 
-  function consume() {
-    console.log(props.topic, { fromBeginning, consumeLastX, newMessages, lastMessagesCount });
+  async function consume() {
+    await invoke('consume_messages', {
+      topic: props.topic,
+      fromBeginning,
+      lastMessagesCount,
+      mode,
+    });
   }
 
   return (

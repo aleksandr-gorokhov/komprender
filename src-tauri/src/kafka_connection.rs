@@ -69,7 +69,10 @@ impl KafkaConnection {
         println!("Connecting to Kafka broker: {}", broker);
         let mut config = ClientConfig::new();
         let client_config = config.set("bootstrap.servers", broker.clone());
-        let consumer: BaseConsumer = client_config.create().map_err(|e| e.to_string())?;
+        let consumer: BaseConsumer = client_config
+            .set("group.id", "technical")
+            .create()
+            .map_err(|e| e.to_string())?;
         let admin_client =
             AdminClient::from_config(&client_config).map_err(|err| err.to_string())?;
         let producer: FutureProducer = client_config.create().map_err(|e| e.to_string())?;

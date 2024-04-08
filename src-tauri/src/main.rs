@@ -1,11 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use crate::consumer_commands::consume_messages;
 use crate::kafka_connection::KafkaConnection;
 use crate::producer_commands::{produce_message_avro, produce_message_json};
 use crate::schema_registry::{fetch_schema, fetch_sr_subjects, SchemaRegistry};
 use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
 
+mod consumer_commands;
 mod kafka_connection;
 mod producer_commands;
 mod schema_registry;
@@ -42,6 +44,7 @@ async fn main() {
             create_topic,
             produce_message_avro,
             produce_message_json,
+            consume_messages,
             fetch_sr_subjects,
             fetch_schema,
             disconnect,

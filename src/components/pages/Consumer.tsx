@@ -3,6 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input.tsx';
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 
 export function Consumer(props: { topic: string }) {
   const [fromBeginning, setFromBeginning] = useState<boolean>(false);
@@ -10,6 +11,24 @@ export function Consumer(props: { topic: string }) {
   const [newMessages, setNewMessages] = useState<boolean>(true);
   const [mode, setMode] = useState<'new' | 'from' | 'last'>('new');
   const [lastMessagesCount, setLastMessagesCount] = useState<number>(100);
+  const [messages, setMessages] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      const unsubscribe = await listen<string>('message_received', event => {
+        if (isActive) {
+          setMessages(messages => [...messages, event.payload]);
+        }
+      });
+
+      return () => {
+        isActive = false;
+        unsubscribe();
+      };
+    })();
+  }, []);
 
   useEffect(() => {
     if (mode === 'new') {
@@ -45,12 +64,15 @@ export function Consumer(props: { topic: string }) {
   }
 
   async function consume() {
-    await invoke('consume_messages', {
+    const messages = await invoke('consume_messages', {
       topic: props.topic,
       fromBeginning,
       lastMessagesCount,
       mode,
     });
+
+    // @ts-ignore
+    setMessages(messages);
   }
 
   return (
@@ -94,6 +116,12 @@ export function Consumer(props: { topic: string }) {
           </label>
         </div>
         <Button onClick={() => consume()}>{label}</Button>
+        {messages.map((message, i) => (
+          <span className="pre" key={'messageRes' + i}>
+            {JSON.stringify(message, null, 2)} {i}
+            <br />
+          </span>
+        ))}
       </div>
     </div>
   );

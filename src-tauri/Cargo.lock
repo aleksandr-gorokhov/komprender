@@ -1578,6 +1578,7 @@ dependencies = [
  "apache-avro",
  "fix-path-env",
  "once_cell",
+ "rand 0.8.5",
  "rdkafka",
  "schema_registry_converter",
  "serde",

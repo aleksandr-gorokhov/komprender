@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use rdkafka::admin::AdminClient;
 use rdkafka::client::DefaultClientContext;
-use rdkafka::ClientConfig;
 use rdkafka::config::FromClientConfig;
-use rdkafka::consumer::{BaseConsumer, Consumer};
+use rdkafka::consumer::{BaseConsumer, Consumer, StreamConsumer};
 use rdkafka::producer::FutureProducer;
+use rdkafka::ClientConfig;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -20,13 +20,20 @@ struct Brokers {
 }
 
 pub static KAFKA_CONSUMER: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
+pub static KAFKA_STREAM_CONSUMER: Lazy<Mutex<Option<StreamConsumer>>> =
+    Lazy::new(|| Mutex::new(None));
 pub static KAFKA_PRODUCER: Lazy<Mutex<Option<FutureProducer>>> = Lazy::new(|| Mutex::new(None));
 pub static KAFKA_ADMIN_CLIENT: Lazy<Mutex<Option<AdminClient<DefaultClientContext>>>> =
     Lazy::new(|| Mutex::new(None));
+pub static BROKER: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
 impl KafkaConnection {
     pub fn get_consumer_instance() -> &'static Mutex<Option<BaseConsumer>> {
         &KAFKA_CONSUMER
+    }
+
+    pub fn get_stream_consumer_instance() -> &'static Mutex<Option<StreamConsumer>> {
+        &KAFKA_STREAM_CONSUMER
     }
 
     pub fn get_producer_instance() -> &'static Mutex<Option<FutureProducer>> {
@@ -36,6 +43,26 @@ impl KafkaConnection {
     pub fn get_admin_client_instance() -> &'static Mutex<Option<AdminClient<DefaultClientContext>>>
     {
         &KAFKA_ADMIN_CLIENT
+    }
+
+    fn get_broker() -> &'static Mutex<Option<String>> {
+        &BROKER
+    }
+
+    pub async fn get_client_config<'a>() -> Result<ClientConfig, String> {
+        let mut config = ClientConfig::new();
+        let broker = KafkaConnection::get_broker().lock().await;
+
+        let broker = match &*broker {
+            Some(broker) => broker.clone(),
+            None => {
+                return Err("Broker not set".to_string());
+            }
+        };
+
+        config.set("bootstrap.servers", broker);
+
+        Ok(config)
     }
 
     pub async fn disconnect() -> Result<(), String> {
@@ -48,6 +75,13 @@ impl KafkaConnection {
 
         let mut kafka_producer_guard = KafkaConnection::get_producer_instance().lock().await;
         *kafka_producer_guard = None;
+
+        let mut kafka_stream_consumer_guard =
+            KafkaConnection::get_stream_consumer_instance().lock().await;
+        *kafka_stream_consumer_guard = None;
+
+        let mut kafka_broker = KafkaConnection::get_broker().lock().await;
+        *kafka_broker = None;
 
         Ok(())
     }
@@ -76,6 +110,7 @@ impl KafkaConnection {
         let admin_client =
             AdminClient::from_config(&client_config).map_err(|err| err.to_string())?;
         let producer: FutureProducer = client_config.create().map_err(|e| e.to_string())?;
+        let stream_consumer: StreamConsumer = client_config.create().map_err(|e| e.to_string())?;
 
         match consumer.fetch_metadata(None, std::time::Duration::from_secs(1)) {
             Ok(_) => println!(
@@ -119,6 +154,24 @@ impl KafkaConnection {
             Some(_) => {}
             None => {
                 *kafka_producer_guard = Some(producer);
+            }
+        }
+
+        let mut kafka_stream_consumer_guard =
+            KafkaConnection::get_stream_consumer_instance().lock().await;
+
+        match &*kafka_stream_consumer_guard {
+            Some(_) => {}
+            None => {
+                *kafka_stream_consumer_guard = Some(stream_consumer);
+            }
+        }
+
+        let mut broker_guard = KafkaConnection::get_broker().lock().await;
+        match &*broker_guard {
+            Some(_) => {}
+            None => {
+                *broker_guard = Some(broker.clone());
             }
         }
 

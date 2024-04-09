@@ -28,11 +28,15 @@ export function Producer(props: { topic: string }) {
       return;
     }
 
+    const cleanedMessage = message.trim().replace(/[‘’“”]/g, function (match: any) {
+      if (match === '‘' || match === '’') return "'";
+      return '"';
+    });
     const action = state === 'avro' ? 'produce_message_avro' : 'produce_message_json';
     const payload =
       state === 'avro'
-        ? { topic: props.topic, payload: message, schemaName: selectedSubject }
-        : { topic: props.topic, payload: message };
+        ? { topic: props.topic, payload: cleanedMessage, schemaName: selectedSubject }
+        : { topic: props.topic, payload: cleanedMessage };
 
     try {
       setIsLoading(true);
@@ -80,12 +84,7 @@ export function Producer(props: { topic: string }) {
   }, [schema, state]);
 
   function handleInput(e: any) {
-    setMessage(
-      e.target.value.replace(/[‘’“”]/g, function (match: any) {
-        if (match === '‘' || match === '’') return "'";
-        return '"';
-      })
-    );
+    setMessage(e.target.value);
   }
 
   return (

@@ -1577,6 +1577,7 @@ version = "0.0.0"
 dependencies = [
  "apache-avro",
  "fix-path-env",
+ "futures",
  "lazy_static",
  "once_cell",
  "rand 0.8.5",

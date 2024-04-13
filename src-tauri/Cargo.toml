@@ -22,6 +22,7 @@ apache-avro = "0.16.0"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 rand = "0.8.5"
 lazy_static = "1.4.0"
+futures = "0.3.30"
 
 
 [features]

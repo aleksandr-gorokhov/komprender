@@ -1,8 +1,8 @@
-use rdkafka::admin::{AdminOptions, NewTopic, TopicReplication};
-use rdkafka::consumer::Consumer;
-use serde::{Deserialize, Serialize};
-
 use crate::kafka_connection::KafkaConnection;
+use futures::future::join_all;
+use rdkafka::admin::{AdminOptions, NewTopic, TopicReplication};
+use rdkafka::consumer::{Consumer, StreamConsumer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CleanupPolicy {
@@ -49,14 +49,17 @@ pub struct TopicPageResult {
 pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
     let kafka = KafkaConnection::get_consumer_instance().lock().await;
     if let Some(consumer) = &*kafka {
-        let metadata = consumer
-            .fetch_metadata(None, std::time::Duration::from_secs(10))
-            .unwrap();
+        let metadata = match consumer.fetch_metadata(None, std::time::Duration::from_secs(10)) {
+            Ok(metadata) => metadata,
+            Err(e) => return Err(e.to_string()),
+        };
 
-        let mut topics_info = vec![];
+        // let mut topics_info = vec![];
+        let mut topic_futures = vec![];
 
         for topic in metadata.topics().iter() {
             let topic_name = topic.name();
+            println!("Checking topic: {}", topic_name);
             if !topic_name.contains(filter) {
                 continue;
             }
@@ -64,23 +67,36 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
             if topic_name.starts_with("_") {
                 continue;
             }
-            let mut total_messages = 0;
-            for partition in topic.partitions().iter() {
-                if let Ok((low, high)) = consumer.fetch_watermarks(
-                    topic_name,
-                    partition.id(),
-                    std::time::Duration::from_secs(10),
-                ) {
-                    total_messages += high.saturating_sub(low);
-                }
-            }
 
-            topics_info.push(TopicResult {
-                name: topic_name.to_owned(),
-                partitions: topic.partitions().iter().len(),
-                messages: total_messages,
-            });
+            let partitions = topic.partitions().iter().len();
+            let partition_ids = topic
+                .partitions()
+                .iter()
+                .map(|p| p.id())
+                .collect::<Vec<_>>();
+
+            let topic_future = async move {
+                let mut total_messages = 0;
+                for partition in partition_ids.iter() {
+                    if let Ok((low, high)) = consumer.fetch_watermarks(
+                        &topic_name,
+                        *partition,
+                        std::time::Duration::from_secs(10),
+                    ) {
+                        total_messages += high.saturating_sub(low);
+                    }
+                }
+
+                TopicResult {
+                    name: topic_name.to_owned(),
+                    partitions,
+                    messages: total_messages,
+                }
+            };
+
+            topic_futures.push(topic_future);
         }
+        let topics_info = join_all(topic_futures).await;
         Ok(topics_info)
     } else {
         Err("Kafka connection not established".to_string())

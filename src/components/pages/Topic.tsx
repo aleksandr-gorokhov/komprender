@@ -104,7 +104,7 @@ export function Topic() {
                   [
                   {partition.replicas.map(replica => (
                     <span key={replica + 'replica'} className={replica === partition.leader ? 'text-green-500' : ''}>
-                      {replica}
+                      {replica},
                     </span>
                   ))}
                   ]

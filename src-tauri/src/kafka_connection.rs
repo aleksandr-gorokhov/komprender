@@ -91,9 +91,9 @@ impl KafkaConnection {
             return Err("Broker cannot be empty".to_string());
         }
 
-        if broker.contains(',') {
-            return Err("Cluster connection are not supported yet".to_string());
-        }
+        // if broker.contains(',') {
+        //     return Err("Cluster connection are not supported yet".to_string());
+        // }
 
         let broker = if !broker.contains(':') {
             format!("{}:9092", broker)
@@ -112,15 +112,15 @@ impl KafkaConnection {
         let producer: FutureProducer = client_config.create().map_err(|e| e.to_string())?;
         let stream_consumer: StreamConsumer = client_config.create().map_err(|e| e.to_string())?;
 
-        match consumer.fetch_metadata(None, std::time::Duration::from_secs(1)) {
+        match consumer.fetch_metadata(None, std::time::Duration::from_secs(5)) {
             Ok(_) => println!(
                 "Successfully connected and fetched metadata from Kafka broker: {}",
                 broker
             ),
-            Err(_) => {
+            Err(e) => {
                 return Err(format!(
-                    "Could not establish connection with kafka broker: {}",
-                    broker
+                    "Could not establish connection with kafka broker: {}. {}",
+                    broker, e
                 ))
             }
         }

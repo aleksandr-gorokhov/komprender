@@ -21,6 +21,7 @@ schema_registry_converter = { version = "4.0.0", features = ["avro"] }
 apache-avro = "0.16.0"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs" }
 rand = "0.8.5"
+lazy_static = "1.4.0"
 
 
 [features]

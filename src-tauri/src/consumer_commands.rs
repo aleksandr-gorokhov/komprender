@@ -1,5 +1,4 @@
 use crate::kafka_connection::KafkaConnection;
-use apache_avro::types::Value;
 use lazy_static::lazy_static;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -208,7 +207,7 @@ fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String
 }
 
 fn generate_group_id() -> String {
-    let mut rng = thread_rng();
+    let rng = thread_rng();
     let random_string: String = rng
         .sample_iter(&Alphanumeric)
         .take(8)
@@ -237,16 +236,6 @@ async fn create_avro_decoder<'a>() -> Result<AvroDecoder<'a>, String> {
             let err = "Error getting schema registry settings".to_string();
             return Err(err);
         }
-    }
-}
-
-async fn get_avro_value<'a>(
-    msg: &'a BorrowedMessage<'_>,
-    decoder: &'a AvroDecoder<'_>,
-) -> Result<Value, String> {
-    match decoder.decode(msg.payload()).await {
-        Ok(r) => Ok(r.value),
-        Err(e) => Err(format!("Error getting value: {}", e)),
     }
 }
 

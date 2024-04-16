@@ -80,20 +80,20 @@ pub async fn produce_message_json(topic: &str, payload: &str) -> Result<(), Stri
     Err("Kafka connection not established".to_string())
 }
 
-fn convert_json_map_to_avro(
+fn _convert_json_map_to_avro(
     map: JsonMap<String, JsonValue>,
     schema: &JsonValue,
 ) -> Result<Vec<(String, apache_avro::types::Value)>, String> {
     map.into_iter()
         .map(|(k, v)| {
-            let avro_val = convert_json_value_to_avro(k.clone(), v, schema)?;
+            let avro_val = _convert_json_value_to_avro(k.clone(), v, schema)?;
             Ok((k, avro_val))
         })
         .collect::<Result<Vec<_>, _>>()
 }
 
 // will just keep it as a reminder to read docs first and then waste 5 hours on doing something somebody already did
-fn convert_json_value_to_avro(
+fn _convert_json_value_to_avro(
     key: String,
     value: JsonValue,
     schema: &JsonValue,
@@ -226,7 +226,7 @@ fn convert_json_value_to_avro(
         "record" => match value {
             JsonValue::Object(map) => {
                 // println!("{:?} \n\n----- {:?} \n\n-----", map, field);
-                if let Ok(result) = convert_json_map_to_avro(map, field) {
+                if let Ok(result) = _convert_json_map_to_avro(map, field) {
                     println!("{:?}", result);
                     Ok(Value::Record(result))
                 } else {

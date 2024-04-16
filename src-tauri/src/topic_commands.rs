@@ -1,8 +1,9 @@
 use crate::kafka_connection::KafkaConnection;
-use futures::future::join_all;
 use rdkafka::admin::{AdminOptions, NewTopic, TopicReplication};
-use rdkafka::consumer::{Consumer, StreamConsumer};
+use rdkafka::consumer::{BaseConsumer, Consumer};
+use rdkafka::{Offset, TopicPartitionList};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum CleanupPolicy {
@@ -48,59 +49,88 @@ pub struct TopicPageResult {
 #[tauri::command]
 pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
     let kafka = KafkaConnection::get_consumer_instance().lock().await;
-    if let Some(consumer) = &*kafka {
-        let metadata = match consumer.fetch_metadata(None, std::time::Duration::from_secs(10)) {
-            Ok(metadata) => metadata,
-            Err(e) => return Err(e.to_string()),
-        };
 
-        // let mut topics_info = vec![];
-        let mut topic_futures = vec![];
+    let consumer = match &*kafka {
+        Some(consumer_instance) => consumer_instance,
+        None => return Err("Kafka connection not established".to_string()),
+    };
 
-        for topic in metadata.topics().iter() {
-            let topic_name = topic.name();
-            println!("Checking topic: {}", topic_name);
-            if !topic_name.contains(filter) {
-                continue;
-            }
+    let metadata = match consumer.fetch_metadata(None, Duration::from_secs(10)) {
+        Ok(metadata) => metadata,
+        Err(e) => return Err(e.to_string()),
+    };
 
-            if topic_name.starts_with("_") {
-                continue;
-            }
+    let mut topics_info = vec![];
+    let mut assignment = TopicPartitionList::new();
 
-            let partitions = topic.partitions().iter().len();
-            let partition_ids = topic
-                .partitions()
-                .iter()
-                .map(|p| p.id())
-                .collect::<Vec<_>>();
+    for topic in metadata.topics().iter() {
+        let topic_name = topic.name();
 
-            let topic_future = async move {
-                let mut total_messages = 0;
-                for partition in partition_ids.iter() {
-                    if let Ok((low, high)) = consumer.fetch_watermarks(
-                        &topic_name,
-                        *partition,
-                        std::time::Duration::from_secs(10),
-                    ) {
-                        total_messages += high.saturating_sub(low);
-                    }
-                }
-
-                TopicResult {
-                    name: topic_name.to_owned(),
-                    partitions,
-                    messages: total_messages,
-                }
-            };
-
-            topic_futures.push(topic_future);
+        if !topic_name.contains(filter) {
+            continue;
         }
-        let topics_info = join_all(topic_futures).await;
-        Ok(topics_info)
-    } else {
-        Err("Kafka connection not established".to_string())
+
+        if topic_name.starts_with("_") {
+            continue;
+        }
+
+        let partitions = topic.partitions().iter().len();
+        let partition_ids = topic
+            .partitions()
+            .iter()
+            .map(|p| p.id())
+            .collect::<Vec<_>>();
+
+        for partition in partition_ids.iter() {
+            assignment
+                .add_partition_offset(topic_name, *partition, Offset::End)
+                .map_err(|e| {
+                    println!("Error adding partition to assignment: {:?}", e);
+                    e.to_string()
+                })?
+        }
+
+        let total_messages = 0;
+        topics_info.push(TopicResult {
+            name: topic_name.to_owned(),
+            partitions,
+            messages: total_messages,
+        })
     }
+
+    let inner_consumer = create_consumer().await?;
+
+    let timeout = Duration::from_secs(10);
+
+    let offsets = match inner_consumer.offsets_for_times(assignment, timeout) {
+        Ok(offsets) => offsets,
+        Err(e) => {
+            println!("Error fetching offsets: {:?}", e);
+            return Err(e.to_string());
+        }
+    };
+    for topic_info in topics_info.iter_mut() {
+        let topic_name = &topic_info.name;
+        let partition_offsets = offsets.elements_for_topic(topic_name);
+        for offset in partition_offsets.iter() {
+            match offset.offset() {
+                Offset::Offset(offset_num) => {
+                    topic_info.messages += offset_num;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(topics_info)
+}
+
+async fn create_consumer() -> Result<BaseConsumer, String> {
+    let client_config = KafkaConnection::get_client_config()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    client_config.create().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

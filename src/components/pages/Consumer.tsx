@@ -128,7 +128,9 @@ export function Consumer(props: { topic: string }) {
         <Accordion type="single" collapsible className="w-full mt-6 border border-b-0">
           {messages.map((message, i) => (
             <AccordionItem value={'item-' + i} key={'consumedMessageTable' + i} className="p-2">
-              <AccordionTrigger>{JSON.stringify(message.value).slice(0, 30)}...</AccordionTrigger>
+              <AccordionTrigger>
+                <p className="w-1/2 truncate">{JSON.stringify(message.value)}</p>
+              </AccordionTrigger>
               <AccordionContent className="p-2">
                 <Table>
                   <TableHeader>

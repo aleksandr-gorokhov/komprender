@@ -158,11 +158,9 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
                     high: 0,
                     messages: 0,
                 };
-                if let Ok((low, high)) = consumer.fetch_watermarks(
-                    topic_name,
-                    partition.id,
-                    std::time::Duration::from_secs(10),
-                ) {
+                if let Ok((low, high)) =
+                    consumer.fetch_watermarks(topic_name, partition.id, Duration::from_secs(10))
+                {
                     partition.low = low;
                     partition.high = high;
                     partition.messages += high.saturating_sub(low);

@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use crate::consumer_commands::{consume_messages, stop_consumers};
-use crate::kafka_connection::KafkaConnection;
+use crate::kafka_connection::{ConnectionItem, KafkaConnection};
 use crate::producer_commands::{produce_message_avro, produce_message_json};
 use crate::schema_registry::{fetch_schema, fetch_sr_subjects, SchemaRegistry};
 use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
@@ -28,7 +28,7 @@ async fn disconnect() -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn fetch_saved_brokers() -> Result<Vec<String>, String> {
+async fn fetch_saved_brokers() -> Result<Vec<ConnectionItem>, String> {
     KafkaConnection::get_saved_brokers().await
 }
 

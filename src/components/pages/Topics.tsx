@@ -7,6 +7,7 @@ import _ from 'lodash';
 import { Button } from '@/components/ui/button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton.tsx';
 
 interface ITopic {
   name: string;
@@ -15,7 +16,7 @@ interface ITopic {
 }
 
 export function Topics() {
-  const [topics, setTopics] = useState<ITopic[]>([]);
+  const [topics, setTopics] = useState<ITopic[] | null>(null);
   const [filter, setFilter] = useState('');
   const [checkedTopics, setCheckedTopics] = useState<string[]>([]);
   const [checkedAll, setCheckedAll] = useState(false);
@@ -51,11 +52,11 @@ export function Topics() {
       return;
     }
     setCheckedAll(true);
-    setCheckedTopics(topics.map(topic => topic.name));
+    setCheckedTopics(topics?.map(topic => topic.name) || []);
   }
 
   useEffect(() => {
-    if (checkedTopics.length === topics.length && checkedTopics.length > 0) {
+    if (checkedTopics.length === topics?.length && checkedTopics.length > 0) {
       setCheckedAll(true);
       return;
     }
@@ -88,12 +89,13 @@ export function Topics() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead colSpan={2} className="w-[100px] pl-0">
+              <TableHead colSpan={3} className="w-[100px] pl-0">
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="select-all"
                     onCheckedChange={() => selectAll()}
                     checked={checkedAll}
+                    disabled={!topics?.length}
                     className="mr-2 ml-6"
                   />
                   <label
@@ -104,31 +106,56 @@ export function Topics() {
                   </label>
                 </div>
               </TableHead>
-              <TableHead className="text-right">Partitions</TableHead>
-              <TableHead className="text-right pr-6">Messages</TableHead>
+              <TableHead colSpan={1} className="text-right">
+                Partitions
+              </TableHead>
+              <TableHead colSpan={1} className="text-right pr-6">
+                Total Offset
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {topics.map(topic => (
-              <TableRow key={topic.name} onClick={() => navigate(`/topic/${topic.name}`)}>
-                <TableCell colSpan={2} className="font-medium text-left pl-0">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={topic.name}
-                      onClick={e => e.stopPropagation()}
-                      onCheckedChange={() => select(topic.name)}
-                      checked={checkedTopics.includes('all') || checkedTopics.includes(topic.name)}
-                      className="mr-2 ml-6"
-                    />
-                    <p className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {topic.name}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">{topic.partitions}</TableCell>
-                <TableCell className="text-right pr-6">{topic.messages}</TableCell>
-              </TableRow>
-            ))}
+            {topics
+              ? topics?.map(topic => (
+                  <TableRow key={topic.name} onClick={() => navigate(`/topic/${topic.name}`)}>
+                    <TableCell colSpan={3} className="font-medium text-left pl-0">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={topic.name}
+                          onClick={e => e.stopPropagation()}
+                          onCheckedChange={() => select(topic.name)}
+                          checked={checkedTopics.includes('all') || checkedTopics.includes(topic.name)}
+                          className="mr-2 ml-6"
+                        />
+                        <p className="cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          {topic.name}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell colSpan={1} className="text-right">
+                      {topic.partitions}
+                    </TableCell>
+                    <TableCell colSpan={1} className="text-right pr-6">
+                      {topic.messages}
+                    </TableCell>
+                  </TableRow>
+                ))
+              : Array.from({ length: 20 }).map((_, i) => (
+                  <TableRow key={'skeletonNum' + i}>
+                    <TableCell colSpan={3} className="font-medium text-left pl-0">
+                      <div className="flex items-center space-x-2 pt-1 pb-1">
+                        <Skeleton className="mr-2 ml-6 h-4 w-5 rounded-md" />
+                        <Skeleton className="h-4 w-[300px]" />
+                      </div>
+                    </TableCell>
+                    <TableCell colSpan={1} className="text-right">
+                      <Skeleton className="h-4" />
+                    </TableCell>
+                    <TableCell colSpan={1} className="text-right pr-6">
+                      <Skeleton className="h-4" />
+                    </TableCell>
+                  </TableRow>
+                ))}
           </TableBody>
         </Table>
       </div>

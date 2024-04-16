@@ -15,8 +15,14 @@ use tokio::sync::Mutex;
 pub struct KafkaConnection;
 
 #[derive(Serialize, Deserialize)]
-struct Brokers {
-    brokers: Vec<String>,
+struct Connections {
+    items: Vec<ConnectionItem>,
+}
+#[derive(Serialize, Deserialize)]
+pub struct ConnectionItem {
+    kafka_broker: String,
+    schema_registry: Option<String>,
+    name: String,
 }
 
 pub static KAFKA_CONSUMER: Lazy<Mutex<Option<BaseConsumer>>> = Lazy::new(|| Mutex::new(None));
@@ -178,7 +184,7 @@ impl KafkaConnection {
         Ok(true)
     }
 
-    pub async fn get_saved_brokers() -> Result<Vec<String>, String> {
+    pub async fn get_saved_brokers() -> Result<Vec<ConnectionItem>, String> {
         let local_data_dir = tauri::api::path::local_data_dir()
             .unwrap_or(PathBuf::new())
             .display()
@@ -193,10 +199,10 @@ impl KafkaConnection {
                 .await
                 .map_err(|e| e.to_string())?;
 
-            let file_contents: Brokers =
+            let file_contents: Connections =
                 serde_json::from_str(&contents).map_err(|e| e.to_string())?;
 
-            Ok(file_contents.brokers)
+            Ok(file_contents.items)
         } else {
             Ok(vec![])
         }
@@ -217,11 +223,19 @@ impl KafkaConnection {
                 .await
                 .map_err(|e| e.to_string())?;
 
-            let mut file_contents: Brokers =
+            let mut file_contents: Connections =
                 serde_json::from_str(&contents).map_err(|e| e.to_string())?;
 
-            if !file_contents.brokers.contains(&broker.to_string()) {
-                file_contents.brokers.push(broker.to_string());
+            if !file_contents
+                .items
+                .iter()
+                .any(|item| &item.kafka_broker.to_string() == &broker.to_string())
+            {
+                file_contents.items.push(ConnectionItem {
+                    kafka_broker: broker.to_string(),
+                    schema_registry: None,
+                    name: "Default".to_string(),
+                });
             }
 
             let serialized =
@@ -230,8 +244,12 @@ impl KafkaConnection {
                 .await
                 .map_err(|e| e.to_string())?;
         } else {
-            let data = Brokers {
-                brokers: vec![broker.to_string()],
+            let data = Connections {
+                items: vec![ConnectionItem {
+                    kafka_broker: broker.to_string(),
+                    schema_registry: None,
+                    name: "Default".to_string(),
+                }],
             };
 
             let serialized = serde_json::to_string_pretty(&data).map_err(|e| e.to_string())?;

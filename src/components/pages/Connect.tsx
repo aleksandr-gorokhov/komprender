@@ -21,7 +21,6 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
     (async () => {
       try {
         const hosts = await invoke<IConnection[]>('fetch_saved_brokers');
-        console.error(hosts);
         setKnownHosts(hosts);
       } catch (e) {
         setKnownHosts([]);

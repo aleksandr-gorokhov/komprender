@@ -36,7 +36,6 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
   return (
     <>
       <div className="flex flex-row flex-wrap items-start w-screen pt-6">
-        {/*<div className="flex">*/}
         {knownHosts.map(host => (
           <Card key={host.kafka_broker} className="w-[500px] ml-6 mt-10">
             <CardHeader>
@@ -61,7 +60,6 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
             </CardFooter>
           </Card>
         ))}
-        {/*</div>*/}
 
         <div className="flex w-screen">
           <Input className="m-6" placeholder="New Brokers" onChange={e => setBroker(e.target.value)} />

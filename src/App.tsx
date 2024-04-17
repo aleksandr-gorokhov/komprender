@@ -14,11 +14,11 @@ function App() {
   const [screen, setScreen] = useState<string>('topics');
   const navigate = useNavigate();
 
-  function connect(broker: string) {
+  function connect(payload: { host: string; name: string; schemaRegistry?: string }) {
     (async () => {
       setError('');
       try {
-        const result = await invoke<boolean>('connect', { broker });
+        const result = await invoke<boolean>('connect', payload);
         setIsConnected(result);
       } catch (err: any) {
         setError(err);

@@ -61,7 +61,8 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
     };
 
     let mut topics_info = vec![];
-    let mut assignment = TopicPartitionList::new();
+    let mut end_assignment = TopicPartitionList::new();
+    let mut start_assignment = TopicPartitionList::new();
 
     for topic in metadata.topics().iter() {
         let topic_name = topic.name();
@@ -82,12 +83,13 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
             .collect::<Vec<_>>();
 
         for partition in partition_ids.iter() {
-            assignment
-                .add_partition_offset(topic_name, *partition, Offset::End)
-                .map_err(|e| {
-                    println!("Error adding partition to assignment: {:?}", e);
-                    e.to_string()
-                })?
+            fulfill_tpl(
+                &mut start_assignment,
+                topic_name,
+                *partition,
+                Offset::Beginning,
+            )?;
+            fulfill_tpl(&mut end_assignment, topic_name, *partition, Offset::End)?;
         }
 
         let total_messages = 0;
@@ -100,19 +102,14 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
 
     let inner_consumer = create_consumer().await?;
 
-    let timeout = Duration::from_secs(10);
+    let start_offsets = fetch_offsets(&inner_consumer, start_assignment)?;
+    let end_offsets = fetch_offsets(&inner_consumer, end_assignment)?;
 
-    let offsets = match inner_consumer.offsets_for_times(assignment, timeout) {
-        Ok(offsets) => offsets,
-        Err(e) => {
-            println!("Error fetching offsets: {:?}", e);
-            return Err(e.to_string());
-        }
-    };
     for topic_info in topics_info.iter_mut() {
         let topic_name = &topic_info.name;
-        let partition_offsets = offsets.elements_for_topic(topic_name);
-        for offset in partition_offsets.iter() {
+        let partition_start_offsets = start_offsets.elements_for_topic(topic_name);
+        let partition_end_offsets = end_offsets.elements_for_topic(topic_name);
+        for offset in partition_end_offsets.iter() {
             match offset.offset() {
                 Offset::Offset(offset_num) => {
                     topic_info.messages += offset_num;
@@ -120,9 +117,48 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
                 _ => {}
             }
         }
+        for offset in partition_start_offsets.iter() {
+            match offset.offset() {
+                Offset::Offset(offset_num) => {
+                    topic_info.messages -= offset_num;
+                }
+                _ => {}
+            }
+        }
     }
 
     Ok(topics_info)
+}
+
+fn fulfill_tpl(
+    assignment: &mut TopicPartitionList,
+    topic_name: &str,
+    partition: i32,
+    offset: Offset,
+) -> Result<(), String> {
+    assignment
+        .add_partition_offset(topic_name, partition, offset)
+        .map_err(|e| {
+            println!("Error adding partition to assignment: {:?}", e);
+            e.to_string()
+        })?;
+
+    Ok(())
+}
+
+fn fetch_offsets(
+    consumer: &BaseConsumer,
+    assignment: TopicPartitionList,
+) -> Result<TopicPartitionList, String> {
+    let timeout = Duration::from_secs(10);
+
+    match consumer.offsets_for_times(assignment, timeout) {
+        Ok(offsets) => Ok(offsets),
+        Err(e) => {
+            println!("Error fetching offsets: {:?}", e);
+            return Err(e.to_string());
+        }
+    }
 }
 
 async fn create_consumer() -> Result<BaseConsumer, String> {
@@ -138,7 +174,7 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
     let kafka = KafkaConnection::get_consumer_instance().lock().await;
     if let Some(consumer) = &*kafka {
         let metadata = consumer
-            .fetch_metadata(Some(name), std::time::Duration::from_secs(10))
+            .fetch_metadata(Some(name), Duration::from_secs(10))
             .unwrap();
 
         let mut topic_info = TopicPageResult {
@@ -149,8 +185,22 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
         for topic in metadata.topics().iter() {
             let topic_name = topic.name();
 
+            let mut end_assignment = TopicPartitionList::new();
+            let mut start_assignment = TopicPartitionList::new();
             for partition_metadata in topic.partitions().iter() {
-                let mut partition = Partition {
+                fulfill_tpl(
+                    &mut start_assignment,
+                    topic_name,
+                    partition_metadata.id(),
+                    Offset::Beginning,
+                )?;
+                fulfill_tpl(
+                    &mut end_assignment,
+                    topic_name,
+                    partition_metadata.id(),
+                    Offset::End,
+                )?;
+                let partition = Partition {
                     id: partition_metadata.id(),
                     leader: partition_metadata.leader(),
                     replicas: partition_metadata.replicas().to_vec(),
@@ -158,15 +208,39 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
                     high: 0,
                     messages: 0,
                 };
-                if let Ok((low, high)) =
-                    consumer.fetch_watermarks(topic_name, partition.id, Duration::from_secs(10))
-                {
-                    partition.low = low;
-                    partition.high = high;
-                    partition.messages += high.saturating_sub(low);
-                }
 
                 topic_info.partitions.push(partition);
+            }
+            let start_offsets = fetch_offsets(&consumer, start_assignment)?;
+            let end_offsets = fetch_offsets(&consumer, end_assignment)?;
+
+            for partition in topic_info.partitions.iter_mut() {
+                let partition_start_offsets = start_offsets.elements_for_topic(&topic_name);
+                let partition_end_offsets = end_offsets.elements_for_topic(&topic_name);
+
+                for partition_elem in partition_end_offsets.iter() {
+                    if partition_elem.partition() == partition.id {
+                        match partition_elem.offset() {
+                            Offset::Offset(offset_num) => {
+                                partition.messages += offset_num;
+                                partition.high = offset_num;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                for partition_elem in partition_start_offsets.iter() {
+                    if partition_elem.partition() == partition.id {
+                        match partition_elem.offset() {
+                            Offset::Offset(offset_num) => {
+                                partition.messages -= offset_num;
+                                partition.low = offset_num;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
         Ok(topic_info)

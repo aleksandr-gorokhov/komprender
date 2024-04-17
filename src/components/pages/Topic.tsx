@@ -102,9 +102,10 @@ export function Topic() {
                 </TableCell>
                 <TableCell className="text-center">
                   [
-                  {partition.replicas.map(replica => (
+                  {partition.replicas.map((replica, index) => (
                     <span key={replica + 'replica'} className={replica === partition.leader ? 'text-green-500' : ''}>
-                      {replica},
+                      {replica}
+                      {index === partition.replicas.length - 1 ? '' : ', '}
                     </span>
                   ))}
                   ]

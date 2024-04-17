@@ -14,7 +14,7 @@ pub static SCHEMA_REGISTRY_SETTINGS: Lazy<Mutex<Option<SrSettings>>> =
 impl SchemaRegistry {
     pub async fn connect(url: &str) -> Result<bool, String> {
         let url = if url.is_empty() {
-            "http://localhost:8081".to_string()
+            return Ok(false);
         } else {
             url.to_string()
         };

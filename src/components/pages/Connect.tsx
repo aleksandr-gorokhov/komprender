@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 import { invoke } from '@tauri-apps/api/tauri';
+import { Label } from '@/components/ui/label.tsx';
 
 interface IConnection {
   kafka_broker: string;
@@ -14,6 +15,8 @@ interface IConnection {
 
 export function Connect({ onConnect, error }: { onConnect: Function; error?: string }) {
   const [broker, setBroker] = useState('');
+  const [schemaRegistry, setSchemaRegistry] = useState('');
+  const [name, setName] = useState('');
 
   const [knownHosts, setKnownHosts] = useState<IConnection[] | null>(null);
 
@@ -54,7 +57,12 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
               )}
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => onConnect(host.kafka_broker)}>
+              <Button
+                className="w-full"
+                onClick={() =>
+                  onConnect({ host: host.kafka_broker, name: host.name, schemaRegistry: host.schema_registry })
+                }
+              >
                 Connect
               </Button>
             </CardFooter>
@@ -62,10 +70,27 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
         ))}
 
         <div className="flex w-screen">
-          <Input className="m-6" placeholder="New Brokers" onChange={e => setBroker(e.target.value)} />
-          <Button className="m-6 ml-0" onClick={() => onConnect(broker)}>
-            Connect
-          </Button>
+          <div className="w-1/2">
+            <div className="grid w-full max-w-sm items-center gap-1.5 m-6">
+              <Label htmlFor="name">Connection Name</Label>
+              <Input id="name" placeholder="Connection Name" onChange={e => setName(e.target.value)} />
+            </div>
+            <div className="grid w-full max-w-sm items-center gap-1.5 m-6">
+              <Label htmlFor="schemaRegistry">Schema Registry (optional)</Label>
+              <Input
+                id="schemaRegistry"
+                placeholder="http://localhost:8081"
+                onChange={e => setSchemaRegistry(e.target.value)}
+              />
+            </div>
+            <div className="grid w-full max-w-sm items-center gap-1.5 m-6">
+              <Label htmlFor="brokers">Kafka brokers</Label>
+              <Input id="brokers" placeholder="kafka:9092" onChange={e => setBroker(e.target.value)} />
+            </div>
+            <Button className="m-6" onClick={() => onConnect({ host: broker, name, schemaRegistry })}>
+              Connect
+            </Button>
+          </div>
         </div>
         {error && (
           <div className="mb-4 ml-6 min-w-72">

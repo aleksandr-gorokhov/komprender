@@ -14,9 +14,9 @@ mod schema_registry;
 mod topic_commands;
 
 #[tauri::command]
-async fn connect(broker: &str) -> Result<bool, String> {
-    KafkaConnection::connect(broker).await?;
-    SchemaRegistry::connect("").await
+async fn connect(host: &str, name: &str, schema_registry: &str) -> Result<bool, String> {
+    SchemaRegistry::connect(schema_registry).await?;
+    KafkaConnection::connect(host, name, schema_registry).await
 }
 
 #[tauri::command]

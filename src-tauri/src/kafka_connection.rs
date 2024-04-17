@@ -21,7 +21,7 @@ struct Connections {
 #[derive(Serialize, Deserialize)]
 pub struct ConnectionItem {
     kafka_broker: String,
-    schema_registry: Option<String>,
+    schema_registry: String,
     name: String,
 }
 
@@ -92,19 +92,19 @@ impl KafkaConnection {
         Ok(())
     }
 
-    pub async fn connect(broker: &str) -> Result<bool, String> {
-        if broker.is_empty() {
+    pub async fn connect(host: &str, name: &str, schema_registry: &str) -> Result<bool, String> {
+        if host.is_empty() {
             return Err("Broker cannot be empty".to_string());
         }
 
-        // if broker.contains(',') {
-        //     return Err("Cluster connection are not supported yet".to_string());
-        // }
+        if name.is_empty() {
+            return Err("Name cannot be empty".to_string());
+        }
 
-        let broker = if !broker.contains(':') {
-            format!("{}:9092", broker)
+        let broker = if !host.contains(':') {
+            format!("{}:9092", host)
         } else {
-            broker.to_string()
+            host.to_string()
         };
         println!("Connecting to Kafka broker: {}", broker);
         let mut config = ClientConfig::new();
@@ -132,7 +132,7 @@ impl KafkaConnection {
         }
         println!("Connected to Kafka broker: {}", broker);
 
-        KafkaConnection::store_broker(&broker)
+        KafkaConnection::store_broker(&broker, name, schema_registry)
             .await
             .map_err(|e| e.to_string())?;
 
@@ -208,7 +208,7 @@ impl KafkaConnection {
         }
     }
 
-    async fn store_broker(broker: &str) -> Result<(), String> {
+    async fn store_broker(host: &str, name: &str, schema_registry: &str) -> Result<(), String> {
         let local_data_dir = tauri::api::path::local_data_dir()
             .unwrap_or(PathBuf::new())
             .display()
@@ -226,15 +226,14 @@ impl KafkaConnection {
             let mut file_contents: Connections =
                 serde_json::from_str(&contents).map_err(|e| e.to_string())?;
 
-            if !file_contents
-                .items
-                .iter()
-                .any(|item| &item.kafka_broker.to_string() == &broker.to_string())
-            {
+            if !file_contents.items.iter().any(|item| {
+                &item.kafka_broker.to_string() == &host.to_string()
+                    && &item.schema_registry.to_string() == &schema_registry.to_string()
+            }) {
                 file_contents.items.push(ConnectionItem {
-                    kafka_broker: broker.to_string(),
-                    schema_registry: None,
-                    name: "Default".to_string(),
+                    kafka_broker: host.to_string(),
+                    schema_registry: schema_registry.to_string(),
+                    name: name.to_string(),
                 });
             }
 
@@ -246,9 +245,9 @@ impl KafkaConnection {
         } else {
             let data = Connections {
                 items: vec![ConnectionItem {
-                    kafka_broker: broker.to_string(),
-                    schema_registry: None,
-                    name: "Default".to_string(),
+                    kafka_broker: host.to_string(),
+                    schema_registry: schema_registry.to_string(),
+                    name: name.to_string(),
                 }],
             };
 

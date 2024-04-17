@@ -43,7 +43,7 @@ pub async fn consume_messages(
     topic: String,
     mode: String,
 ) -> Result<(), String> {
-    let avro_decoder = create_avro_decoder().await?;
+    let avro_decoder = create_avro_decoder().await;
 
     let group_id = generate_group_id();
 
@@ -110,13 +110,7 @@ fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String
             let partitions = assignment.elements();
             let mut offsets = vec![];
             for partition in partitions {
-                if let Ok(_) = consumer.fetch_watermarks(
-                    topic,
-                    partition.partition(),
-                    std::time::Duration::from_secs(10),
-                ) {
-                    offsets.push((partition.partition(), Offset::End));
-                }
+                offsets.push((partition.partition(), Offset::End));
             }
 
             offsets
@@ -125,13 +119,7 @@ fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String
             let partitions = assignment.elements();
             let mut offsets = vec![];
             for partition in partitions {
-                if let Ok(_) = consumer.fetch_watermarks(
-                    topic,
-                    partition.partition(),
-                    std::time::Duration::from_secs(10),
-                ) {
-                    offsets.push((partition.partition(), Offset::Beginning));
-                }
+                offsets.push((partition.partition(), Offset::Beginning));
             }
 
             offsets
@@ -162,13 +150,7 @@ fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String
             let partitions = assignment.elements();
             let mut offsets = vec![];
             for partition in partitions {
-                if let Ok(_) = consumer.fetch_watermarks(
-                    topic,
-                    partition.partition(),
-                    std::time::Duration::from_secs(10),
-                ) {
-                    offsets.push((partition.partition(), Offset::Beginning));
-                }
+                offsets.push((partition.partition(), Offset::Beginning));
             }
 
             offsets
@@ -213,7 +195,7 @@ fn generate_group_id() -> String {
         .take(8)
         .map(char::from)
         .collect();
-    format!("massive-consumer-{}", random_string)
+    format!("__komprender-technical-consumer-group-{}", random_string)
 }
 
 async fn create_consumer(group_id: String) -> Result<StreamConsumer, String> {
@@ -241,14 +223,24 @@ async fn create_avro_decoder<'a>() -> Result<AvroDecoder<'a>, String> {
 
 async fn process_message<'a>(
     message: &'a BorrowedMessage<'_>,
-    avro_decoder: &'a AvroDecoder<'_>,
+    avro_decoder: &Result<AvroDecoder<'_>, String>,
     app_handle: &AppHandle,
 ) -> Result<(), String> {
-    if let Some(json) = decode_avro_to_json(message, avro_decoder).await {
-        emit_message(app_handle, &json);
-    } else if let Some(json) = decode_bytes_to_json(message)? {
-        emit_message(app_handle, &json);
+    match avro_decoder {
+        Ok(decoder) => {
+            if let Some(json) = decode_avro_to_json(message, &decoder).await {
+                emit_message(app_handle, &json);
+            } else if let Some(json) = decode_bytes_to_json(message)? {
+                emit_message(app_handle, &json);
+            }
+        }
+        Err(_) => {
+            if let Some(json) = decode_bytes_to_json(message)? {
+                emit_message(app_handle, &json);
+            }
+        }
     }
+    println!("Message processed but could not be parsed");
     Ok(())
 }
 

@@ -119,7 +119,7 @@ export function Topics({ disconnect }: { disconnect: () => void }) {
                 Partitions
               </TableHead>
               <TableHead colSpan={1} className="text-right pr-6">
-                Total Offset
+                Messages
               </TableHead>
             </TableRow>
           </TableHeader>

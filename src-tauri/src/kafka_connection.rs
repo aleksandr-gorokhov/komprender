@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use once_cell::sync::Lazy;
 use rdkafka::admin::AdminClient;
@@ -6,7 +7,7 @@ use rdkafka::client::DefaultClientContext;
 use rdkafka::config::FromClientConfig;
 use rdkafka::consumer::{BaseConsumer, Consumer, StreamConsumer};
 use rdkafka::producer::FutureProducer;
-use rdkafka::ClientConfig;
+use rdkafka::{ClientConfig, Offset, TopicPartitionList};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -264,5 +265,36 @@ impl KafkaConnection {
         }
 
         Ok(())
+    }
+}
+
+pub fn fulfill_tpl(
+    assignment: &mut TopicPartitionList,
+    topic_name: &str,
+    partition: i32,
+    offset: Offset,
+) -> Result<(), String> {
+    assignment
+        .add_partition_offset(topic_name, partition, offset)
+        .map_err(|e| {
+            println!("Error adding partition to assignment: {:?}", e);
+            e.to_string()
+        })?;
+
+    Ok(())
+}
+
+pub fn fetch_offsets(
+    consumer: &BaseConsumer,
+    assignment: TopicPartitionList,
+) -> Result<TopicPartitionList, String> {
+    let timeout = Duration::from_secs(10);
+
+    match consumer.offsets_for_times(assignment, timeout) {
+        Ok(offsets) => Ok(offsets),
+        Err(e) => {
+            println!("Error fetching offsets: {:?}", e);
+            return Err(e.to_string());
+        }
     }
 }

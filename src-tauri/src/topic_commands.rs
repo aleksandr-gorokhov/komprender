@@ -1,4 +1,4 @@
-use crate::kafka_connection::KafkaConnection;
+use crate::kafka_connection::{fetch_offsets, fulfill_tpl, KafkaConnection};
 use rdkafka::admin::{AdminOptions, NewTopic, TopicReplication};
 use rdkafka::consumer::{BaseConsumer, Consumer};
 use rdkafka::{Offset, TopicPartitionList};
@@ -130,37 +130,6 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
     Ok(topics_info)
 }
 
-fn fulfill_tpl(
-    assignment: &mut TopicPartitionList,
-    topic_name: &str,
-    partition: i32,
-    offset: Offset,
-) -> Result<(), String> {
-    assignment
-        .add_partition_offset(topic_name, partition, offset)
-        .map_err(|e| {
-            println!("Error adding partition to assignment: {:?}", e);
-            e.to_string()
-        })?;
-
-    Ok(())
-}
-
-fn fetch_offsets(
-    consumer: &BaseConsumer,
-    assignment: TopicPartitionList,
-) -> Result<TopicPartitionList, String> {
-    let timeout = Duration::from_secs(10);
-
-    match consumer.offsets_for_times(assignment, timeout) {
-        Ok(offsets) => Ok(offsets),
-        Err(e) => {
-            println!("Error fetching offsets: {:?}", e);
-            return Err(e.to_string());
-        }
-    }
-}
-
 async fn create_consumer() -> Result<BaseConsumer, String> {
     let client_config = KafkaConnection::get_client_config()
         .await
@@ -211,8 +180,11 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
 
                 topic_info.partitions.push(partition);
             }
+            println!("fetching offsets");
             let start_offsets = fetch_offsets(&consumer, start_assignment)?;
+            println!("fetched start");
             let end_offsets = fetch_offsets(&consumer, end_assignment)?;
+            println!("fetched end");
 
             for partition in topic_info.partitions.iter_mut() {
                 let partition_start_offsets = start_offsets.elements_for_topic(&topic_name);

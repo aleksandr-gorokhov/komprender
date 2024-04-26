@@ -1,16 +1,18 @@
-use crate::kafka_connection::KafkaConnection;
+use crate::kafka_connection::{fetch_offsets, fulfill_tpl, KafkaConnection};
 use lazy_static::lazy_static;
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use rdkafka::consumer::{Consumer, StreamConsumer};
-use rdkafka::message::BorrowedMessage;
-use rdkafka::{Message, Offset};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rdkafka::consumer::BaseConsumer;
+use rdkafka::{
+    consumer::{Consumer, StreamConsumer},
+    message::BorrowedMessage,
+    Message, Offset, TopicPartitionList,
+};
 use schema_registry_converter::async_impl::avro::AvroDecoder;
 use serde::Serialize;
 use serde_json::{self, Value as JsonValue};
 use tauri::{AppHandle, Manager};
-use tokio::sync::oneshot::Sender;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, oneshot::Sender, Mutex};
+use tokio::time::Duration;
 
 use crate::schema_registry::SchemaRegistry;
 
@@ -45,14 +47,20 @@ pub async fn consume_messages(
 ) -> Result<(), String> {
     let avro_decoder = create_avro_decoder().await;
 
-    let group_id = generate_group_id();
-
     let (tx, rx) = oneshot::channel::<bool>();
     {
         let mut signal_storage = TX.lock().await;
         signal_storage.push(tx);
     }
     let (tx_signal, mut rx_signal) = mpsc::channel::<()>(1);
+
+    let client_config = KafkaConnection::get_client_config()
+        .await
+        .map_err(|e| e.to_string())?;
+    let base_consumer: BaseConsumer = client_config.create().map_err(|e| {
+        println!("Error creating consumer: {}", e);
+        e.to_string()
+    })?;
 
     let join_handle = tokio::spawn(async move {
         tokio::spawn(async move {
@@ -62,6 +70,7 @@ pub async fn consume_messages(
         });
 
         let mut messages_count = 0;
+        let group_id = generate_group_id();
         let consumer = create_consumer(group_id).await?;
 
         match consumer.subscribe(&[&*topic]) {
@@ -83,7 +92,9 @@ pub async fn consume_messages(
             },
         } {
             if !seeked {
-                seek(&consumer, &mode, &topic)?;
+                println!("Starting seek");
+                seek(&consumer, &mode, &topic, &base_consumer).await?;
+                println!("Seeked");
                 seeked = true;
                 continue;
             }
@@ -101,50 +112,91 @@ pub async fn consume_messages(
     Ok(())
 }
 
-fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String> {
+async fn seek(
+    consumer: &StreamConsumer,
+    mode: &str,
+    topic: &str,
+    base_consumer: &BaseConsumer,
+) -> Result<(), String> {
     let assignment = consumer.assignment().map_err(|e| e.to_string())?;
 
     let offsets = match mode {
         "end" => {
             println!("Seeked to end of topic: {}", topic);
             let partitions = assignment.elements();
-            let mut offsets = vec![];
-            for partition in partitions {
-                offsets.push((partition.partition(), Offset::End));
+            for mut partition in partitions {
+                partition
+                    .set_offset(Offset::End)
+                    .map_err(|e| e.to_string())?;
             }
 
-            offsets
+            assignment
         }
         "beginning" => {
+            println!("Starting to seek to beginning of topic: {}", topic);
             let partitions = assignment.elements();
-            let mut offsets = vec![];
-            for partition in partitions {
-                offsets.push((partition.partition(), Offset::Beginning));
+            for mut partition in partitions {
+                partition
+                    .set_offset(Offset::Beginning)
+                    .map_err(|e| e.to_string())?;
             }
-
-            offsets
+            println!("Seeked to beginning of topic: {}", topic);
+            assignment
         }
         "last" => {
             println!("Seeked to last 100 messages of topic: {}", topic);
             let partitions = assignment.elements();
             let partitions_count = partitions.len();
-            let mut offsets = vec![];
+            println!("Partitions count: {:?}", partitions_count);
+
+            let mut start_assignment = TopicPartitionList::new();
+            let mut end_assignment = TopicPartitionList::new();
+
             for partition in partitions {
-                if let Ok((low, high)) = consumer.fetch_watermarks(
+                fulfill_tpl(
+                    &mut start_assignment,
                     topic,
                     partition.partition(),
-                    std::time::Duration::from_secs(10),
-                ) {
-                    let result =
-                        (high as f64 - f64::from(100) / partitions_count as f64).ceil() as i64;
-                    println!("{}, {}, {}, {}", high, low, result, partitions_count);
-                    let final_result = std::cmp::max(result, low);
-                    println!("Seeked to offset: {}", final_result);
-                    offsets.push((partition.partition(), Offset::Offset(final_result)));
-                }
+                    Offset::Beginning,
+                )?;
+                fulfill_tpl(
+                    &mut end_assignment,
+                    topic,
+                    partition.partition(),
+                    Offset::End,
+                )?;
+            }
+            println!("Partitions assigner, start fetching");
+            let end_offsets = fetch_offsets(&base_consumer, end_assignment)?;
+            println!("fetched end");
+            let end_offsets = end_offsets.elements_for_topic(&topic);
+            let start_offsets = fetch_offsets(&base_consumer, start_assignment)?;
+            println!("fetched start");
+            let start_offsets = start_offsets.elements_for_topic(&topic);
+
+            let mut result_tpl = TopicPartitionList::new();
+
+            for (index, partition) in end_offsets.iter().enumerate() {
+                let high = match partition.offset() {
+                    Offset::Offset(offset) => offset,
+                    _ => 0,
+                };
+                let low = match start_offsets[index].offset() {
+                    Offset::Offset(offset) => offset,
+                    _ => 0,
+                };
+                let result = (high as f64 - f64::from(100) / partitions_count as f64).ceil() as i64;
+                let final_result = std::cmp::max(result, low);
+                println!("Seeked to offset: {}", final_result);
+                fulfill_tpl(
+                    &mut result_tpl,
+                    topic,
+                    partition.partition(),
+                    Offset::Offset(final_result),
+                )?;
             }
 
-            offsets
+            result_tpl
         }
         _ => {
             let partitions = assignment.elements();
@@ -153,37 +205,13 @@ fn seek(consumer: &StreamConsumer, mode: &str, topic: &str) -> Result<(), String
                 offsets.push((partition.partition(), Offset::Beginning));
             }
 
-            offsets
+            assignment
         }
     };
 
-    for partition in assignment.elements() {
-        let offset = offsets.iter().find_map(|item| {
-            if item.0 == partition.partition() {
-                Some(item.1)
-            } else {
-                None
-            }
-        });
-        match offset {
-            Some(offset) => {
-                consumer
-                    .seek(
-                        topic,
-                        partition.partition(),
-                        offset,
-                        std::time::Duration::from_secs(1),
-                    )
-                    .map_err(|e| {
-                        println!("Error seeking to offset: {}", e);
-                        e.to_string()
-                    })?;
-            }
-            None => {
-                println!("Offset not found for partition: {}", partition.partition());
-            }
-        }
-    }
+    consumer
+        .seek_partitions(offsets, Duration::from_secs(5))
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -204,10 +232,13 @@ async fn create_consumer(group_id: String) -> Result<StreamConsumer, String> {
         .map_err(|e| e.to_string())?;
 
     client_config
-        .set("group.id", &group_id)
+        .set("group.id", group_id)
         .set("auto.offset.reset", "earliest")
         .create()
-        .map_err(|e| e.to_string())
+        .map_err(|e| {
+            println!("Error creating consumer: {}", e);
+            e.to_string()
+        })
 }
 
 async fn create_avro_decoder<'a>() -> Result<AvroDecoder<'a>, String> {
@@ -240,7 +271,6 @@ async fn process_message<'a>(
             }
         }
     }
-    println!("Message processed but could not be parsed");
     Ok(())
 }
 

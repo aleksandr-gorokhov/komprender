@@ -114,7 +114,7 @@ export function Consumer(props: { topic: string }) {
             htmlFor="consume-last-x"
             className="flex items-center cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex-grow"
           >
-            <span>Consume last 100 messages (continuous)</span>
+            <span>Consume last 100 messages (continuous) *can be slow for large amount of partitions*</span>
           </label>
         </div>
         <div className="space-x-4">
@@ -126,50 +126,37 @@ export function Consumer(props: { topic: string }) {
           </Button>
         </div>
         <Accordion type="single" collapsible className="w-full mt-6 border border-b-0">
+          <div className="flex">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[33%] text-left">Partition</TableHead>
+                  <TableHead className="w-[33%] text-left">Offset</TableHead>
+                  <TableHead className="w-[33%] text-left">Key</TableHead>
+                </TableRow>
+              </TableHeader>
+            </Table>
+            <div className="w-4 border-b"></div>
+          </div>
           {messages.map((message, i) => (
-            <AccordionItem value={'item-' + i} key={'consumedMessageTable' + i} className="p-2">
-              <AccordionTrigger>
-                <p className="w-1/2 truncate">{JSON.stringify(message.value)}</p>
-              </AccordionTrigger>
-              <AccordionContent className="p-2">
+            <AccordionItem value={'item-' + i} key={'consumedMessageTable' + i}>
+              <AccordionTrigger className="w-full">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead colSpan={1} className="text-left">
-                        Partition
-                      </TableHead>
-                      <TableHead colSpan={1} className="text-left pr-6">
-                        Offset
-                      </TableHead>
-                      <TableHead colSpan={1} className="text-left pr-6">
-                        Key
-                      </TableHead>
-                      <TableHead colSpan={6} className="w-[100px] pl-0">
-                        <div className="flex items-center space-x-2">Value</div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
                   <TableBody>
                     <TableRow key={'message' + i}>
-                      <TableCell colSpan={1} className="text-left">
-                        {message.partition}
-                      </TableCell>
-                      <TableCell colSpan={1} className="text-left pr-6">
-                        {message.offset}
-                      </TableCell>
-                      <TableCell colSpan={1} className="text-left pr-6">
-                        {message.key}
-                      </TableCell>
-                      <TableCell colSpan={6} className="font-medium text-left pl-0">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            <pre>{JSON.stringify(message.value, null, 2)}</pre>
-                          </p>
-                        </div>
-                      </TableCell>
+                      <TableCell className="w-[33%] text-left">{message.partition}</TableCell>
+                      <TableCell className="w-[33%] text-left">{message.offset}</TableCell>
+                      <TableCell className="w-[33%] text-left">{message.key}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
+              </AccordionTrigger>
+              <AccordionContent className="p-2">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    <pre>{JSON.stringify(message.value, null, 2)}</pre>
+                  </p>
+                </div>
               </AccordionContent>
             </AccordionItem>
           ))}

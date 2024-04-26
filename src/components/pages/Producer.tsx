@@ -6,9 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input.tsx';
 
 export function Producer(props: { topic: string }) {
   const [message, setMessage] = useState<string>(``);
+  const [key, setKey] = useState<string>(``);
   const [state, setState] = useState<string>('avro');
   const [subjects, setSubjects] = useState<string[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -32,11 +34,15 @@ export function Producer(props: { topic: string }) {
       if (match === '‘' || match === '’') return "'";
       return '"';
     });
+    const cleanedKey = key.trim().replace(/[‘’“”]/g, function (match: any) {
+      if (match === '‘' || match === '’') return "'";
+      return '"';
+    });
     const action = state === 'avro' ? 'produce_message_avro' : 'produce_message_json';
     const payload =
       state === 'avro'
-        ? { topic: props.topic, payload: cleanedMessage, schemaName: selectedSubject }
-        : { topic: props.topic, payload: cleanedMessage };
+        ? { topic: props.topic, payload: cleanedMessage, schemaName: selectedSubject, key: cleanedKey }
+        : { topic: props.topic, payload: cleanedMessage, key: cleanedKey };
 
     try {
       setIsLoading(true);
@@ -87,6 +93,10 @@ export function Producer(props: { topic: string }) {
     setMessage(e.target.value);
   }
 
+  function handleInputKey(e: any) {
+    setKey(e.target.value);
+  }
+
   return (
     <div className="p-6 w-full h-full">
       <Select onValueChange={value => setState(value)} defaultValue={state}>
@@ -100,6 +110,7 @@ export function Producer(props: { topic: string }) {
       </Select>
       {state === 'json' && (
         <>
+          <Input className="w-full mb-6" onInput={handleInputKey} value={key} placeholder="Key" />
           <Textarea className="w-full" onInput={handleInput} value={message} placeholder="Enter message here" />
           <Button onClick={() => produceMessage()} disabled={isLoading} className="mt-6 mb-6">
             Send
@@ -125,6 +136,7 @@ export function Producer(props: { topic: string }) {
           </div>
           <div className="flex flex-row w-full">
             <div className="flex flex-col w-1/2 mr-6">
+              <Input className="w-full mb-6" onInput={handleInputKey} value={key} placeholder="Key" />
               <Textarea className="w-full" onInput={handleInput} value={message} placeholder="Enter message here" />
               <Button onClick={() => produceMessage()} disabled={isLoading} className="mt-6 mb-6">
                 Send

@@ -976,6 +976,30 @@ body {
   width: 500px;
 }
 
+.w-\[33\%\] {
+  width: 33%;
+}
+
+.w-\[32\%\] {
+  width: 32%;
+}
+
+.w-\[30\%\] {
+  width: 30%;
+}
+
+.w-\[10\%\] {
+  width: 10%;
+}
+
+.w-\[99\%\] {
+  width: 99%;
+}
+
+.w-\[98\%\] {
+  width: 98%;
+}
+
 .min-w-72 {
   min-width: 18rem;
 }
@@ -1372,6 +1396,14 @@ body {
 
 .pt-1 {
   padding-top: 0.25rem;
+}
+
+.pl-4 {
+  padding-left: 1rem;
+}
+
+.pb-6 {
+  padding-bottom: 1.5rem;
 }
 
 .text-left {

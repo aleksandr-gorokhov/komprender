@@ -13,6 +13,7 @@ pub async fn produce_message_avro(
     topic: &str,
     payload: &str,
     schema_name: &str,
+    key: &str,
 ) -> Result<(), String> {
     println!("{}", schema_name);
     let parsed_json: JsonValue = serde_json::from_str(payload).map_err(|e| {
@@ -37,7 +38,7 @@ pub async fn produce_message_avro(
         let producer = KafkaConnection::get_producer_instance().lock().await;
         if let Some(producer) = &*producer {
             let produce_future = producer.send(
-                FutureRecord::to(topic).key(&()).payload(&bytes),
+                FutureRecord::to(topic).key(key).payload(&bytes),
                 Duration::from_secs(10),
             );
 
@@ -55,11 +56,11 @@ pub async fn produce_message_avro(
 }
 
 #[tauri::command]
-pub async fn produce_message_json(topic: &str, payload: &str) -> Result<(), String> {
+pub async fn produce_message_json(topic: &str, payload: &str, key: &str) -> Result<(), String> {
     let producer = KafkaConnection::get_producer_instance().lock().await;
     if let Some(producer) = &*producer {
         let produce_future = producer.send(
-            FutureRecord::to(topic).key(&()).payload(payload),
+            FutureRecord::to(topic).key(key).payload(payload),
             Duration::from_secs(10),
         );
 

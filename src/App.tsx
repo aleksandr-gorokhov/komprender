@@ -7,12 +7,14 @@ import { Topics } from '@/components/pages/Topics';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { CreateTopic } from '@/components/pages/CreateTopic.tsx';
 import { Topic } from '@/components/pages/Topic.tsx';
+import { useSettings } from '@/components/misc/SettingsProvider.tsx';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string>('');
   const [screen, setScreen] = useState<string>('topics');
   const navigate = useNavigate();
+  const { settings, setSettings } = useSettings();
 
   function connect(payload: { host: string; name: string; schemaRegistry?: string }) {
     (async () => {
@@ -20,6 +22,7 @@ function App() {
       try {
         const result = await invoke<boolean>('connect', payload);
         setIsConnected(result);
+        setSettings({ ...settings, schemaRegistryConnected: !!payload.schemaRegistry });
       } catch (err: any) {
         setError(err);
       }
@@ -58,16 +61,18 @@ function App() {
               >
                 Topics
               </Button>
-              <Button
-                variant={screen === 'schema' ? 'outline' : 'default'}
-                className="m-2 ml-0 w-full"
-                onClick={() => {
-                  setScreen('schema');
-                  navigate('/schema');
-                }}
-              >
-                Schema Registry
-              </Button>
+              {settings.schemaRegistryConnected && (
+                <Button
+                  variant={screen === 'schema' ? 'outline' : 'default'}
+                  className="m-2 ml-0 w-full"
+                  onClick={() => {
+                    setScreen('schema');
+                    navigate('/schema');
+                  }}
+                >
+                  Schema Registry
+                </Button>
+              )}
             </div>
             <Button variant="destructive" className="m-2 ml-0 w-full" onClick={disconnect}>
               Disconnect
@@ -77,8 +82,8 @@ function App() {
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={75}>
           <Routes>
-            <Route path="/" Component={Topics} />
-            <Route path="/topics" Component={Topics} />
+            <Route path="/" Component={() => Topics({ disconnect })} />
+            <Route path="/topics" Component={() => Topics({ disconnect })} />
             <Route path="/schema" Component={() => null} />
             <Route path="/topic/:name" Component={Topic} />
             <Route path="/create" Component={CreateTopic} />

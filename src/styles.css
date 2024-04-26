@@ -1000,6 +1000,14 @@ body {
   width: 98%;
 }
 
+.w-\[50px\] {
+  width: 50px;
+}
+
+.w-\[150px\] {
+  width: 150px;
+}
+
 .min-w-72 {
   min-width: 18rem;
 }

@@ -15,16 +15,25 @@ interface ITopic {
   messages: number;
 }
 
-export function Topics() {
+export function Topics({ disconnect }: { disconnect: () => void }) {
   const [topics, setTopics] = useState<ITopic[] | null>(null);
   const [filter, setFilter] = useState('');
   const [checkedTopics, setCheckedTopics] = useState<string[]>([]);
   const [checkedAll, setCheckedAll] = useState(false);
   const navigate = useNavigate();
 
-  const fetchTopics = _.debounce(async () => {
-    const response = await invoke<ITopic[]>('fetch_topics', { filter });
-    setTopics(response);
+  const fetchTopics = _.debounce(async (i = 0) => {
+    try {
+      const response = await invoke<ITopic[]>('fetch_topics', { filter });
+      setTopics(response);
+    } catch (err) {
+      if (i > 5) {
+        disconnect();
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      fetchTopics(i + 1);
+    }
   }, 100);
 
   useEffect(() => {

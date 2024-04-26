@@ -100,6 +100,10 @@ pub async fn fetch_topics(filter: &str) -> Result<Vec<TopicResult>, String> {
         })
     }
 
+    if topics_info.len() == 0 {
+        return Ok(topics_info);
+    }
+
     let inner_consumer = create_consumer().await?;
 
     let start_offsets = fetch_offsets(&inner_consumer, start_assignment)?;

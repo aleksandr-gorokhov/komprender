@@ -40,21 +40,21 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
     <>
       <div className="flex flex-row flex-wrap items-start w-screen pt-6">
         {knownHosts.map(host => (
-          <Card key={host.kafka_broker} className="w-[500px] ml-6 mt-10">
+          <Card key={host.kafka_broker} className="w-[400px] ml-6 mt-10">
             <CardHeader>
               <CardTitle>{host.name}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="flex items-center space-x-4 rounded-md">
                 <p className="font-semibold">Kafka: </p>
-                <p>{host.kafka_broker.split(',').join(' ')}</p>
+                <p className="whitespace-nowrap truncate w-[150px]">{host.kafka_broker.split(',').join(' ')}</p>
               </div>
-              {host.schema_registry && (
+              {
                 <div className="flex items-center space-x-4 rounded-md">
                   <p className="font-semibold">Schema Registry: </p>
-                  <p>{host.schema_registry}</p>
+                  <p className="whitespace-nowrap truncate w-[150px]">{host.schema_registry || 'Not connected'}</p>
                 </div>
-              )}
+              }
             </CardContent>
             <CardFooter>
               <Button

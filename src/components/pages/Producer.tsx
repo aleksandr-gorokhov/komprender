@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input.tsx';
+import { useSettings } from '@/components/misc/SettingsProvider.tsx';
 
 export function Producer(props: { topic: string }) {
   const [message, setMessage] = useState<string>(``);
@@ -17,6 +18,7 @@ export function Producer(props: { topic: string }) {
   const [schema, setSchema] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { settings } = useSettings();
 
   async function produceMessage() {
     setError('');
@@ -86,6 +88,12 @@ export function Producer(props: { topic: string }) {
   }, [state]);
 
   useEffect(() => {
+    if (!settings.schemaRegistryConnected) {
+      setState('json');
+    }
+  }, [settings.schemaRegistryConnected]);
+
+  useEffect(() => {
     setError('');
   }, [schema, state]);
 
@@ -99,15 +107,19 @@ export function Producer(props: { topic: string }) {
 
   return (
     <div className="p-6 w-full h-full">
-      <Select onValueChange={value => setState(value)} defaultValue={state}>
-        <SelectTrigger className="mb-6">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="mb-6">
-          <SelectItem value="json">JSON</SelectItem>
-          <SelectItem value="avro">AVRO</SelectItem>
-        </SelectContent>
-      </Select>
+      {settings.schemaRegistryConnected && (
+        <Select onValueChange={value => setState(value)} defaultValue={state}>
+          <SelectTrigger className="mb-6">
+            <SelectValue />
+          </SelectTrigger>
+
+          <SelectContent className="mb-6">
+            <SelectItem value="json">JSON</SelectItem>
+            <SelectItem value="avro">AVRO</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+
       {state === 'json' && (
         <>
           <Input className="w-full mb-6" onInput={handleInputKey} value={key} placeholder="Key" />

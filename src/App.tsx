@@ -61,7 +61,7 @@ function App() {
               >
                 Topics
               </Button>
-              {settings.schemaRegistryConnected && (
+              {settings.schemaRegistryConnected && false && (
                 <Button
                   variant={screen === 'schema' ? 'outline' : 'default'}
                   className="m-2 ml-0 w-full"

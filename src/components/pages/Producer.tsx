@@ -188,7 +188,7 @@ export function Producer(props: { topic: string }) {
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] max-h-[300px] overflow-hidden p-0" side="bottom">
+                <PopoverContent className="w-[400px] max-h-[200px] overflow-hidden p-0" side="bottom">
                   <Command>
                     <CommandInput placeholder="Select AVRO schema" />
                     <CommandList>

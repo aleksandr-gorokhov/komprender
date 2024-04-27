@@ -927,6 +927,10 @@ body {
   max-height: 400px;
 }
 
+.max-h-\[200px\] {
+  max-height: 200px;
+}
+
 .min-h-\[80px\] {
   min-height: 80px;
 }
@@ -1070,6 +1074,14 @@ body {
 
 .w-72 {
   width: 18rem;
+}
+
+.w-\[450px\] {
+  width: 450px;
+}
+
+.w-\[40\%\] {
+  width: 40%;
 }
 
 .min-w-72 {

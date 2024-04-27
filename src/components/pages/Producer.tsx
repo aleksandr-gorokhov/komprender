@@ -4,12 +4,24 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.tsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Check, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input.tsx';
 import { useSettings } from '@/components/misc/SettingsProvider.tsx';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover.tsx';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command.tsx';
+import { cn } from '@/lib/utils.ts';
 
 export function Producer(props: { topic: string }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string>(``);
   const [key, setKey] = useState<string>(``);
   const [state, setState] = useState<string>('avro');
@@ -164,18 +176,56 @@ export function Producer(props: { topic: string }) {
               )}
             </div>
             <div className="flex flex-col w-1/2">
-              <Select onValueChange={v => selectSchema(v)}>
-                <SelectTrigger className="mb-6">
-                  <SelectValue placeholder="Select AVRO schema" />
-                </SelectTrigger>
-                <SelectContent className="mb-6">
-                  {subjects.map(subject => (
-                    <SelectItem key={subject + 'subjectSelectorKey'} value={subject}>
-                      {subject}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full mb-6 justify-between"
+                  >
+                    {search ? subjects.find(subject => subject === search) : 'Select AVRO schema'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] max-h-[300px] overflow-hidden p-0" side="bottom">
+                  <Command>
+                    <CommandInput placeholder="Select AVRO schema" />
+                    <CommandList>
+                      <CommandEmpty>No schema found</CommandEmpty>
+                      <CommandGroup>
+                        {subjects.map(subject => (
+                          <CommandItem
+                            key={subject + 'subjectSelectorKey'}
+                            value={subject}
+                            onSelect={currentValue => {
+                              selectSchema(currentValue);
+                              setSearch(currentValue);
+                              setOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', search === subject ? 'opacity-100' : 'opacity-0')} />
+                            {subject}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {/*<Select onValueChange={v => selectSchema(v)}>*/}
+              {/*  <SelectTrigger className="mb-6">*/}
+              {/*    <SelectValue placeholder="Select AVRO schema" />*/}
+              {/*  </SelectTrigger>*/}
+              {/*  <SelectContent className="mb-6">*/}
+              {/*    {subjects.map(subject => (*/}
+              {/*      <SelectItem key={subject + 'subjectSelectorKey'} value={subject}>*/}
+              {/*        {subject}*/}
+              {/*      </SelectItem>*/}
+              {/*    ))}*/}
+              {/*  </SelectContent>*/}
+              {/*</Select>*/}
               {schema && (
                 <div className="border rounded-md">
                   <div className="font-mono text-sm overflow-auto rounded-lg">

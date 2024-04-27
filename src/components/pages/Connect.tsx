@@ -40,7 +40,7 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
     <>
       <div className="flex flex-row flex-wrap items-start w-screen pt-6">
         {knownHosts.map(host => (
-          <Card key={host.kafka_broker} className="w-[400px] ml-6 mt-10">
+          <Card key={host.kafka_broker + host.schema_registry + host.name} className="w-[400px] ml-6 mt-10">
             <CardHeader>
               <CardTitle>{host.name}</CardTitle>
             </CardHeader>

@@ -42,20 +42,14 @@ impl SchemaRegistry {
     }
 
     pub async fn get_all_subjects() -> Result<Vec<String>, String> {
-        println!("Getting all subjects");
         let sr_guard = SchemaRegistry::get_settings().lock().await;
-        println!("Guard locked");
 
         if let Some(sr_settings) = &*sr_guard {
-            println!("Got guard");
-
             let subjects = get_all_subjects(sr_settings)
                 .await
                 .map_err(|e| e.to_string());
             subjects
         } else {
-            println!("Got nothing");
-
             return Err("Schema Registry not connected".to_string());
         }
     }

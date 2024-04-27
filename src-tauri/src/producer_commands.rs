@@ -84,7 +84,7 @@ pub async fn produce_message_json(topic: &str, payload: &str, key: &str) -> Resu
 fn _convert_json_map_to_avro(
     map: JsonMap<String, JsonValue>,
     schema: &JsonValue,
-) -> Result<Vec<(String, apache_avro::types::Value)>, String> {
+) -> Result<Vec<(String, Value)>, String> {
     map.into_iter()
         .map(|(k, v)| {
             let avro_val = _convert_json_value_to_avro(k.clone(), v, schema)?;

@@ -11,6 +11,7 @@ import { useSettings } from '@/components/misc/SettingsProvider.tsx';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string>('');
   const [screen, setScreen] = useState<string>('topics');
   const navigate = useNavigate();
@@ -20,11 +21,14 @@ function App() {
     (async () => {
       setError('');
       try {
+        setConnecting(true);
         const result = await invoke<boolean>('connect', payload);
         setIsConnected(result);
         setSettings({ ...settings, schemaRegistryConnected: !!payload.schemaRegistry });
       } catch (err: any) {
         setError(err);
+      } finally {
+        setConnecting(false);
       }
     })();
   }
@@ -42,7 +46,7 @@ function App() {
   }
 
   if (!isConnected) {
-    return <Connect onConnect={connect} error={error} />;
+    return <Connect onConnect={connect} error={error} connecting={connecting} />;
   }
 
   return (

@@ -13,7 +13,15 @@ interface IConnection {
   name: string;
 }
 
-export function Connect({ onConnect, error }: { onConnect: Function; error?: string }) {
+export function Connect({
+  onConnect,
+  error,
+  connecting,
+}: {
+  onConnect: Function;
+  error?: string;
+  connecting: boolean;
+}) {
   const [broker, setBroker] = useState('');
   const [schemaRegistry, setSchemaRegistry] = useState('');
   const [name, setName] = useState('');
@@ -59,6 +67,7 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
             <CardFooter>
               <Button
                 className="w-full"
+                disabled={connecting}
                 onClick={() =>
                   onConnect({ host: host.kafka_broker, name: host.name, schemaRegistry: host.schema_registry })
                 }
@@ -87,7 +96,11 @@ export function Connect({ onConnect, error }: { onConnect: Function; error?: str
               <Label htmlFor="brokers">Kafka brokers</Label>
               <Input id="brokers" placeholder="kafka:9092" onChange={e => setBroker(e.target.value)} />
             </div>
-            <Button className="m-6" onClick={() => onConnect({ host: broker, name, schemaRegistry })}>
+            <Button
+              className="m-6"
+              disabled={connecting}
+              onClick={() => onConnect({ host: broker, name, schemaRegistry })}
+            >
               Connect
             </Button>
           </div>

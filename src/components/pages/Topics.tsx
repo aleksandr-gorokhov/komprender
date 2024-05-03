@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
+import { toast } from 'sonner';
 
 interface ITopic {
   name: string;
@@ -74,8 +75,12 @@ export function Topics({ disconnect }: { disconnect: () => void }) {
 
   function dropTopics() {
     (async () => {
-      await invoke('drop_topics', { topicNames: checkedTopics });
-      fetchTopics();
+      try {
+        await invoke('drop_topics', { topicNames: checkedTopics });
+        fetchTopics();
+      } catch (err) {
+        toast.error('Error dropping topics: ' + err);
+      }
     })();
   }
 

@@ -6,6 +6,7 @@ import { AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 import { invoke } from '@tauri-apps/api/tauri';
 import { Label } from '@/components/ui/label.tsx';
+import { toast } from 'sonner';
 
 interface IConnection {
   kafka_broker: string;
@@ -35,7 +36,7 @@ export function Connect({
         setKnownHosts(hosts);
       } catch (e) {
         setKnownHosts([]);
-        console.error(e);
+        toast.error('Error fetching saved brokers');
       }
     })();
   }, []);

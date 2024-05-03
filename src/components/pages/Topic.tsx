@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Producer } from '@/components/pages/Producer.tsx';
 import { Consumer } from '@/components/pages/Consumer.tsx';
+import { toast } from 'sonner';
 
 interface IPartition {
   id: number;
@@ -28,8 +29,12 @@ export function Topic() {
 
   useEffect(() => {
     (async () => {
-      const response = await invoke<ITopicInfo>('fetch_topic', { name });
-      setTopic(response);
+      try {
+        const response = await invoke<ITopicInfo>('fetch_topic', { name });
+        setTopic(response);
+      } catch (err) {
+        toast.error('Error fetching topic data: ' + err);
+      }
     })();
   }, [name]);
 

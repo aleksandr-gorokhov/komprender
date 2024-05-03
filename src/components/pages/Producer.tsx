@@ -85,7 +85,7 @@ export function Producer(props: { topic: string }) {
       setSelectedSubject(subject);
       setSchema(JSON.stringify(JSON.parse(schemaData), undefined, 2));
     } catch (err) {
-      console.error(err);
+      toast.error('Error fetching schema data: ' + err);
     }
   }
 
@@ -94,8 +94,12 @@ export function Producer(props: { topic: string }) {
       return;
     }
     (async () => {
-      const subjects = await invoke<string[]>('fetch_sr_subjects');
-      setSubjects(subjects);
+      try {
+        const subjects = await invoke<string[]>('fetch_sr_subjects');
+        setSubjects(subjects);
+      } catch {
+        toast.error('Error fetching schema subjects');
+      }
     })();
   }, [state]);
 

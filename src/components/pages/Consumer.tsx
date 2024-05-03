@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion.tsx';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.tsx';
+import { toast } from 'sonner';
 
 interface IMessage {
   key: string;
@@ -75,16 +76,25 @@ export function Consumer(props: { topic: string }) {
   async function consume() {
     setMessages([]);
     setConsuming(true);
-    await invoke('consume_messages', {
-      topic: props.topic,
-      mode,
-    });
-    setConsuming(false);
+    try {
+      await invoke('consume_messages', {
+        topic: props.topic,
+        mode,
+      });
+    } catch (err) {
+      toast.error('Error fetching saved brokers: ' + err);
+    } finally {
+      setConsuming(false);
+    }
   }
 
   async function stop() {
-    await invoke('stop_consumers');
-    setConsuming(false);
+    try {
+      await invoke('stop_consumers');
+      setConsuming(false);
+    } catch (err) {
+      toast.error('Error stopping consumers: ' + err);
+    }
   }
 
   return (

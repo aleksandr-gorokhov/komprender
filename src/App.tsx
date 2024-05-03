@@ -23,6 +23,7 @@ function App() {
       try {
         setConnecting(true);
         const result = await invoke<boolean>('connect', payload);
+        navigate('/');
         setIsConnected(result);
         setSettings({ ...settings, schemaRegistryConnected: !!payload.schemaRegistry });
       } catch (err: any) {
@@ -39,6 +40,7 @@ function App() {
       try {
         await invoke<boolean>('disconnect');
         setIsConnected(false);
+        navigate('/');
       } catch (err: any) {
         setError(err);
       }

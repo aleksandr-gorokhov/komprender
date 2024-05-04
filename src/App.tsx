@@ -18,11 +18,12 @@ function App() {
   const { settings, setSettings } = useSettings();
 
   useEffect(() => {
-    invoke('check_version');
+    invoke('check_version').catch(console.error);
   }, []);
 
   function connect(payload: { host: string; name: string; schemaRegistry?: string }) {
     (async () => {
+      invoke('check_version').catch(console.error);
       setError('');
       try {
         setConnecting(true);

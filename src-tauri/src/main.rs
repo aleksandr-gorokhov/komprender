@@ -39,11 +39,9 @@ async fn fetch_saved_brokers() -> Result<Vec<ConnectionItem>, String> {
 #[tauri::command]
 async fn check_version(app_handle: AppHandle) -> Result<(), String> {
     let versions = reqwest::get("https://raw.githubusercontent.com/aleksandr-gorokhov/versions/main/komprender-versions.json")
-        .await
-        .unwrap()
+        .await.map_err(|e| e.to_string())?
         .json::<serde_json::Value>()
-        .await
-        .unwrap();
+        .await.map_err(|e| e.to_string())?;
 
     let version_status = match versions.get(CURRENT_VERSION) {
         Some(status) => status.clone(),

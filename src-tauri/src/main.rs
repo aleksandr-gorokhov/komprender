@@ -6,12 +6,16 @@ use crate::kafka_connection::{ConnectionItem, KafkaConnection};
 use crate::producer_commands::{produce_message_avro, produce_message_json};
 use crate::schema_registry::{fetch_schema, fetch_sr_subjects, SchemaRegistry};
 use crate::topic_commands::{create_topic, drop_topics, fetch_topic, fetch_topics};
+use tauri::api::dialog::confirm;
+use tauri::{AppHandle, Manager};
 
 mod consumer_commands;
 mod kafka_connection;
 mod producer_commands;
 mod schema_registry;
 mod topic_commands;
+
+const CURRENT_VERSION: &str = "1.2.0";
 
 #[tauri::command]
 async fn connect(host: &str, name: &str, schema_registry: &str) -> Result<bool, String> {
@@ -32,12 +36,44 @@ async fn fetch_saved_brokers() -> Result<Vec<ConnectionItem>, String> {
     KafkaConnection::get_saved_brokers().await
 }
 
+#[tauri::command]
+async fn check_version(app_handle: AppHandle) -> Result<(), String> {
+    let versions = reqwest::get("https://raw.githubusercontent.com/aleksandr-gorokhov/versions/main/komprender-versions.json")
+        .await
+        .unwrap()
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+
+    let version_status = match versions.get(CURRENT_VERSION) {
+        Some(status) => status.clone(),
+        None => {
+            println!("Version {} not found in the JSON data.", CURRENT_VERSION);
+            return Err("Version not found".to_string());
+        }
+    };
+
+    let main_window = app_handle.get_window("main").unwrap();
+
+    if version_status == "unsafe" {
+        confirm(Some(&main_window),
+                "Warning",
+                "Your version is marked as unsafe. Application will shutdown. Consider updating the application",
+                move |_| {
+            app_handle.exit(0);
+        });
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     let _ = fix_path_env::fix();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             connect,
+            check_version,
             fetch_topics,
             fetch_topic,
             drop_topics,

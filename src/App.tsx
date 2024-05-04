@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Connect } from '@/components/pages/Connect';
@@ -16,6 +16,10 @@ function App() {
   const [screen, setScreen] = useState<string>('topics');
   const navigate = useNavigate();
   const { settings, setSettings } = useSettings();
+
+  useEffect(() => {
+    invoke('check_version');
+  }, []);
 
   function connect(payload: { host: string; name: string; schemaRegistry?: string }) {
     (async () => {

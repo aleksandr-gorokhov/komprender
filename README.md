@@ -28,4 +28,4 @@ This application was developed as a learning project and, while it offers many u
 Contributions are welcome! If you have suggestions for improvements, or if you've found a bug and want to report it, please open an issue or submit a pull request.
 
 ## License
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License.

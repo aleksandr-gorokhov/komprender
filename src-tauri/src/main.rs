@@ -15,7 +15,7 @@ mod producer_commands;
 mod schema_registry;
 mod topic_commands;
 
-const CURRENT_VERSION: &str = "1.2.0";
+const CURRENT_VERSION: &str = "1.3.0";
 
 #[tauri::command]
 async fn connect(host: &str, name: &str, schema_registry: &str) -> Result<bool, String> {

@@ -184,11 +184,8 @@ pub async fn fetch_topic(name: &str) -> Result<TopicPageResult, String> {
 
                 topic_info.partitions.push(partition);
             }
-            println!("fetching offsets");
             let start_offsets = fetch_offsets(&consumer, start_assignment)?;
-            println!("fetched start");
             let end_offsets = fetch_offsets(&consumer, end_assignment)?;
-            println!("fetched end");
 
             for partition in topic_info.partitions.iter_mut() {
                 let partition_start_offsets = start_offsets.elements_for_topic(&topic_name);

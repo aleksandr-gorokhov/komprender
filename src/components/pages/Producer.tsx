@@ -19,12 +19,12 @@ import {
 } from '@/components/ui/command.tsx';
 import { cn } from '@/lib/utils.ts';
 
-export function Producer(props: { topic: string }) {
+export function Producer(props: { topic: string; setProduced: Function }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState<string>(``);
   const [key, setKey] = useState<string>(``);
-  const [state, setState] = useState<string>('avro');
+  const [state, setState] = useState<string>('json');
   const [subjects, setSubjects] = useState<string[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [schema, setSchema] = useState<string>('');
@@ -62,6 +62,7 @@ export function Producer(props: { topic: string }) {
       setIsLoading(true);
       await invoke(action, payload);
       toast.success('Message has been sent');
+      props.setProduced((prev: number) => prev + 1);
     } catch (err) {
       if (typeof err === 'string') {
         setError(err);
@@ -90,6 +91,12 @@ export function Producer(props: { topic: string }) {
   }
 
   useEffect(() => {
+    if (settings.schemaRegistryConnected) {
+      setState('avro');
+    }
+  }, [settings.schemaRegistryConnected]);
+
+  useEffect(() => {
     if (state !== 'avro' || subjects.length) {
       return;
     }
@@ -102,12 +109,6 @@ export function Producer(props: { topic: string }) {
       }
     })();
   }, [state]);
-
-  useEffect(() => {
-    if (!settings.schemaRegistryConnected) {
-      setState('json');
-    }
-  }, [settings.schemaRegistryConnected]);
 
   useEffect(() => {
     setError('');

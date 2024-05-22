@@ -341,7 +341,12 @@ fn decode_bytes_to_json(message: &BorrowedMessage) -> Result<Option<MessageRespo
         })),
         Err(e) => {
             println!("Error parsing JSON: {}", e);
-            Ok(None)
+            Ok(Some(MessageResponse {
+                key,
+                value: message_str.into(),
+                partition,
+                offset,
+            }))
         }
     }
 }

@@ -25,16 +25,21 @@ interface ITopicInfo {
 export function Topic() {
   let { name } = useParams();
   const [topic, setTopic] = useState<ITopicInfo | null>(null);
+  const [produced, setProduced] = useState(0);
   const [state, setState] = useState<'partitions' | 'producer' | 'consumer'>('partitions');
+
+  async function fetchTopic() {
+    try {
+      const response = await invoke<ITopicInfo>('fetch_topic', { name });
+      setTopic(response);
+    } catch (err) {
+      toast.error('Error fetching topic data: ' + err);
+    }
+  }
 
   useEffect(() => {
     (async () => {
-      try {
-        const response = await invoke<ITopicInfo>('fetch_topic', { name });
-        setTopic(response);
-      } catch (err) {
-        toast.error('Error fetching topic data: ' + err);
-      }
+      await fetchTopic();
     })();
   }, [name]);
 
@@ -64,7 +69,9 @@ export function Topic() {
         <div className="flex h-5 items-center space-x-4 text-sm">
           <div>{topic.partitions.length} partitions</div>
           <Separator orientation="vertical" />
-          <div>{topic.partitions.reduce((acc, nextPartition) => acc + nextPartition.messages, 0)} messages</div>
+          <div>
+            {topic.partitions.reduce((acc, nextPartition) => acc + nextPartition.messages, 0) + produced} messages
+          </div>
           <Separator orientation="vertical" />
           <Button variant="secondary" onClick={() => openProducer()}>
             Produce message
@@ -123,7 +130,7 @@ export function Topic() {
           </TableBody>
         </Table>
       ) : state === 'producer' ? (
-        <Producer topic={name} />
+        <Producer topic={name} setProduced={setProduced} />
       ) : (
         <Consumer topic={name} />
       )}
